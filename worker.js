@@ -49,14 +49,16 @@ export default {
     });
     if (!upd.ok) return json({ error: "update failed", detail: await upd.text() }, 502);
 
-    // append to Change Log (best-effort)
-    try {
-      await fetch(`https://api.airtable.com/v0/${BASE}/${encodeURIComponent("Change Log")}`, {
-        method: "POST", headers: H,
-        body: JSON.stringify({ fields: { Name: name, Timestamp: new Date().toISOString(),
-          PreviousStatus: prev || "Pending", NewStatus: status, Notes: notes || "" } }),
-      });
-    } catch (_) {}
+    // append to Change Log ONLY when the status actually changed (not a routine re-check)
+    if (prev !== status) {
+      try {
+        await fetch(`https://api.airtable.com/v0/${BASE}/${encodeURIComponent("Change Log")}`, {
+          method: "POST", headers: H,
+          body: JSON.stringify({ fields: { Name: name, Timestamp: new Date().toISOString(),
+            PreviousStatus: prev || "Pending", NewStatus: status, Notes: notes || "" } }),
+        });
+      } catch (_) {}
+    }
 
     return json({ ok: true, name, status, lastChecked: today, checkCount: cc });
   },

@@ -110,12 +110,15 @@ def generate(area_slug, year, month):
     sd.sort(key=lambda x:x['name'])
 
     formula=f"AND(IS_AFTER(Timestamp, '{s.strftime('%Y-%m-%dT00:00:00')}'), IS_BEFORE(Timestamp, '{e.strftime('%Y-%m-%dT00:00:00')}'))"
-    changes=api_get('Change Log', f'&filterByFormula={urllib.parse.quote(formula)}&sort%5B0%5D%5Bfield%5D=Timestamp&sort%5B0%5D%5Bdirection%5D=desc')
+    params=f'&filterByFormula={urllib.parse.quote(formula)}&sort%5B0%5D%5Bfield%5D=Timestamp&sort%5B0%5D%5Bdirection%5D=desc'
+    changes=api_get('Change Log', params)+api_get('All Change Log', params)  # both historical logs
     cd=[]
     for r in changes:
         f=r.get('fields',{})
         if f.get('Name') not in area_names: continue
+        if (f.get('PreviousStatus') or '')==(f.get('NewStatus') or ''): continue  # only ACTUAL status changes, not re-checks
         cd.append({'name':f.get('Name',''),'timestamp':f.get('Timestamp',''),'prev':f.get('PreviousStatus',''),'new':f.get('NewStatus',''),'notes':f.get('Notes','')})
+    cd.sort(key=lambda x:x['timestamp'], reverse=True)
 
     counts={}
     for x in sd: counts[x['status']]=counts.get(x['status'],0)+1
