@@ -34,6 +34,7 @@
     .appbar .t{font:600 15px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;letter-spacing:.02em}
     .appbar .sp{flex:1}
     .appbar a.bk{color:#cdd7e3;text-decoration:none;font:600 13px -apple-system,'Segoe UI',Roboto,sans-serif}
+    .route-pill{display:inline-block;transform:translate(-50%,-50%);background:#0f2742;color:#fff;padding:3px 10px;border-radius:999px;font:600 11px -apple-system,'Segoe UI',Roboto,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.35);letter-spacing:.02em;}
     
     /* Dark leaflet popup - HIDDEN (using custom info panel) */
     .leaflet-popup { display: none !important; }
@@ -666,6 +667,12 @@
             dashArray: '10, 10',
             opacity: 0.9
           }).addTo(map).bindPopup(`<div class="popup-name">${route.name}</div>`);
+          // route-name pill at the midpoint of the line
+          const c = route.coords;
+          if (c && c.length) {
+            const mid = c[Math.floor(c.length / 2)];
+            L.marker(mid, { interactive: false, icon: L.divIcon({ className: 'route-pill', html: route.name, iconSize: null }) }).addTo(map);
+          }
         });
       }
     }
