@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THC SFLA Tracker</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{ --navy:#0f2742; --red:#b8232a; --ink:#1d2733; --muted:#667; --line:#e3e7ec; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#f6f7f9}
+  a{color:inherit}
+  /* header */
+  .top{background:var(--navy);color:#fff;display:flex;align-items:center;gap:12px;padding:10px 16px}
+  .top img{height:30px}
+  .top h1{font-size:16px;font-weight:600;letter-spacing:.02em}
+  .top .sp{flex:1}
+  .top a.back{color:#cdd7e3;text-decoration:none;font-size:13px}
+  /* landing */
+  .wrap{max-width:1000px;margin:0 auto;padding:24px 16px}
+  .lead{color:var(--muted);margin:4px 0 22px;font-size:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;text-decoration:none;color:inherit;display:block;transition:.15s;border-top:5px solid var(--c)}
+  .card:hover{box-shadow:0 6px 20px rgba(15,39,66,.10);transform:translateY(-2px)}
+  .card h2{font-size:18px;margin-bottom:6px}
+  .card .n{font-size:30px;font-weight:700;color:var(--c)}
+  .card .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .card .warn{color:var(--red);font-size:13px;margin-top:6px;font-weight:600}
+  .dl{display:inline-block;margin-top:20px;background:var(--navy);color:#fff;text-decoration:none;padding:9px 16px;border-radius:10px;font-size:13px}
+  /* map */
+  #map{position:absolute;top:50px;left:0;right:0;bottom:0}
+  .legend{position:absolute;bottom:18px;left:12px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;z-index:500;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+  .legend .row{display:flex;align-items:center;gap:7px;margin:3px 0}
+  .legend .sw{width:14px;height:14px;border-radius:3px;border:1px solid #999}
+  .counts{position:absolute;top:60px;right:12px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;z-index:500;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+  .counts b{font-size:13px}
+  .pop b{font-size:14px}
+  .pop .st{display:inline-block;padding:2px 8px;border-radius:20px;color:#fff;font-size:11px;margin-top:4px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const COLORS = {
+  green:"#2e9e4f", yellow:"#e3b505", orange:"#e8730c", red:"#cf2330", grey:"#8a8f98"
+};
+function statusColor(p){
+  if(p.status==="Unsuitable") return COLORS.grey;
+  if(p.status==="New SFLA")   return COLORS.red;
+  // age since lastChecked
+  let days = 9999;
+  if(p.lastChecked){ days = Math.floor((Date.now()-Date.parse(p.lastChecked))/86400000); }
+  if(p.status==="Pending Recheck") return days>28?COLORS.orange:COLORS.yellow;
+  if(days<=20) return COLORS.green;
+  if(days<=28) return COLORS.yellow;
+  return COLORS.orange;
+}
+const root=document.getElementById('root');
+const params=new URLSearchParams(location.search);
+const area=params.get('area');
+
+Promise.all([
+  fetch('config.json').then(r=>r.json()),
+  fetch('data.geojson').then(r=>r.json())
+]).then(([cfg,data])=>{ area ? renderMap(cfg,data) : renderLanding(cfg,data); });
+
+function header(title, back){
+  return `<div class="top"><img src="thc_logo.png" alt="THC"><h1>${title}</h1><span class="sp"></span>${back?'<a class="back" href="index.html">‹ All areas</a>':''}</div>`;
+}
+
+function renderLanding(cfg,data){
+  const cards = Object.entries(cfg.areas).map(([slug,a])=>{
+    const pads=data.features.filter(f=>f.properties.areas.includes(a.tag));
+    const need=pads.filter(f=>{
+      const p=f.properties;
+      if(p.status==="New SFLA"||p.status==="Pending Recheck") return true;
+      if(!p.lastChecked) return true;
+      return Math.floor((Date.now()-Date.parse(p.lastChecked))/86400000)>28;
+    }).length;
+    return `<a class="card" style="--c:${a.color}" href="?area=${slug}">
+      <h2>${a.label}</h2><div class="n">${pads.length}</div>
+      <div class="sub">SFLAs in this area</div>
+      ${need?`<div class="warn">${need} need a check</div>`:`<div class="sub">all current ✓</div>`}
+    </a>`;
+  }).join('');
+  root.innerHTML = header('THC — Safe Forced Landing Areas',false) +
+    `<div class="wrap"><div class="lead">Pick an area. Each map shows only that area's SFLAs; a pad shared between areas appears in both.</div>
+     <div class="grid">${cards}</div>
+     <a class="dl" href="THC_SFLA_master.kmz" download>⬇ Download master KMZ (all areas, colour-coded)</a></div>`;
+}
+
+function renderMap(cfg,data){
+  const a=cfg.areas[area];
+  if(!a){ root.innerHTML=header('Unknown area',true); return; }
+  root.innerHTML=header('SFLA — '+a.label,true)+'<div id="map"></div>';
+  const map=L.map('map').setView(a.center,a.zoom);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {maxZoom:19,attribution:'© OpenStreetMap, © CARTO'}).addTo(map);
+  const feats=data.features.filter(f=>f.properties.areas.includes(a.tag));
+  const tally={green:0,yellow:0,orange:0,red:0,grey:0};
+  const layer=L.geoJSON({type:'FeatureCollection',features:feats},{
+    style:f=>{const c=statusColor(f.properties);
+      for(const k in COLORS) if(COLORS[k]===c) tally[k]++;
+      return {color:c,weight:1.5,fillColor:c,fillOpacity:.45};},
+    onEachFeature:(f,lyr)=>{const p=f.properties;
+      lyr.bindPopup(`<div class="pop"><b>${p.name}</b><br>
+        <span class="st" style="background:${statusColor(p)}">${p.status}</span><br>
+        <small>Areas: ${p.areas.join(', ')}</small><br>
+        <small>Last checked: ${p.lastChecked||'—'} · checks: ${p.checkCount||0}</small>
+        ${p.notes?'<br><small>'+p.notes+'</small>':''}</div>`);}
+  }).addTo(map);
+  if(feats.length) map.fitBounds(layer.getBounds().pad(0.1));
+  // legend + counts
+  const lg=L.DomUtil.create('div','legend');
+  lg.innerHTML=`<div class="row"><span class="sw" style="background:${COLORS.green}"></span>Suitable, current (≤20d)</div>
+    <div class="row"><span class="sw" style="background:${COLORS.yellow}"></span>Recheck due (21–28d)</div>
+    <div class="row"><span class="sw" style="background:${COLORS.orange}"></span>Overdue (&gt;28d)</div>
+    <div class="row"><span class="sw" style="background:${COLORS.red}"></span>New / unchecked</div>
+    <div class="row"><span class="sw" style="background:${COLORS.grey}"></span>Unsuitable</div>`;
+  document.body.appendChild(lg);
+  const ct=L.DomUtil.create('div','counts');
+  ct.innerHTML=`<b>${a.label}: ${feats.length} SFLAs</b><br>
+    <span style="color:${COLORS.green}">●</span> ${tally.green} current ·
+    <span style="color:${COLORS.orange}">●</span> ${tally.orange+tally.yellow} due ·
+    <span style="color:${COLORS.red}">●</span> ${tally.red} new`;
+  document.body.appendChild(ct);
+}
+</script>
+</body>
+</html>

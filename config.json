@@ -1,0 +1,9 @@
+{
+  "airtable": { "baseId": "appBJW3FvPw5c659F", "tableName": "SFLA Sites v2" },
+  "areas": {
+    "uam":       { "label": "UAM",        "tag": "UAM",       "color": "#1565c0", "center": [24.79, 46.70], "zoom": 11 },
+    "malham":    { "label": "Malham",     "tag": "Malham",    "color": "#2e7d32", "center": [24.95, 46.52], "zoom": 11 },
+    "city-tour": { "label": "City Tour",  "tag": "City Tour", "color": "#ef6c00", "center": [24.78, 46.62], "zoom": 12 },
+    "najd":      { "label": "NAJD",       "tag": "NAJD",      "color": "#7b1fa2", "center": [24.71, 46.62], "zoom": 12 }
+  }
+}
