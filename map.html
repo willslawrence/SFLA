@@ -667,10 +667,17 @@
             dashArray: '10, 10',
             opacity: 0.9
           }).addTo(map).bindPopup(`<div class="popup-name">${route.name}</div>`);
-          // route-name pill at the midpoint of the line
+          // route-name pill at the true midpoint (50% along the line by length)
           const c = route.coords;
-          if (c && c.length) {
-            const mid = c[Math.floor(c.length / 2)];
+          if (c && c.length >= 2) {
+            const segs = []; let total = 0;
+            for (let i = 0; i < c.length - 1; i++) { const d = Math.hypot(c[i+1][0]-c[i][0], c[i+1][1]-c[i][1]); segs.push(d); total += d; }
+            let half = total / 2, mid = c[0];
+            for (let i = 0; i < segs.length; i++) {
+              if (half <= segs[i]) { const t = segs[i] === 0 ? 0 : half / segs[i];
+                mid = [c[i][0] + (c[i+1][0]-c[i][0])*t, c[i][1] + (c[i+1][1]-c[i][1])*t]; break; }
+              half -= segs[i];
+            }
             L.marker(mid, { interactive: false, icon: L.divIcon({ className: 'route-pill', html: route.name, iconSize: null }) }).addTo(map);
           }
         });
