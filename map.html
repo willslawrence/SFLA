@@ -723,7 +723,8 @@
     
     // Render shapes (filtered to the selected area)
     function renderShapes() {
-      VIS_SHAPES_FN().forEach(shape => {
+      const vs = VIS_SHAPES_FN();
+      vs.forEach(shape => {
         const site = siteData[shape.name];
         const status = site?.fields?.Status || 'Pending';
         const lastChecked = site?.fields?.LastChecked;
@@ -753,6 +754,8 @@
         }).addTo(map);
         labels[shape.name] = label;
       });
+      // center/zoom the map on this area's pads
+      if (vs.length) map.fitBounds(L.latLngBounds(vs.map(s => s.center)).pad(0.15));
     }
     
     // Update shape color
