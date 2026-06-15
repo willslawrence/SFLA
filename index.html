@@ -78,7 +78,7 @@ function renderLanding(cfg,data){
       if(!p.lastChecked) return true;
       return Math.floor((Date.now()-Date.parse(p.lastChecked))/86400000)>28;
     }).length;
-    return `<a class="card" style="--c:${a.color}" href="?area=${slug}">
+    return `<a class="card" style="--c:${a.color}" href="map.html?area=${slug}">
       <h2>${a.label}</h2><div class="n">${pads.length}</div>
       <div class="sub">SFLAs in this area</div>
       ${need?`<div class="warn">${need} need a check</div>`:`<div class="sub">all current ✓</div>`}
