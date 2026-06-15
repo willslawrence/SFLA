@@ -7,7 +7,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="shapes.js"></script>
 <style>
-  html,body,#map{height:100%;width:100%;margin:0;padding:0;background:#222}
+  html,body,#map{height:100%;width:100%;margin:0;padding:0;background:#ffffff}
   .leaflet-control-attribution{display:none}
   .legend{position:absolute;bottom:10px;left:10px;z-index:500;background:rgba(255,255,255,.92);
           border-radius:8px;padding:8px 10px;font:600 11px -apple-system,'Segoe UI',Roboto,sans-serif;color:#222}
@@ -39,7 +39,7 @@ fetch('data.geojson').then(r=>r.json()).then(gj=>{
   const layer=L.geoJSON({type:'FeatureCollection',features:feats},{
     style:f=>{const c=color(f.properties);return{color:c,weight:1.4,fillColor:c,fillOpacity:.55}}
   }).addTo(map);
-  if(feats.length)map.fitBounds(layer.getBounds().pad(0.12));
+  if(feats.length)map.fitBounds(layer.getBounds().pad(0.04),{maxZoom:16});
   else map.setView([24.78,46.66],11);
   window.__shotReady=true;
 });

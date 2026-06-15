@@ -66,7 +66,7 @@ def screenshot_map(slug):
     url=f"file://{HERE}/mapshot.html?area={slug}"
     try:
         subprocess.run([chrome,"--headless","--disable-gpu","--hide-scrollbars",
-            f"--screenshot={out}","--window-size=1200,820","--virtual-time-budget=12000",
+            f"--screenshot={out}","--window-size=1000,1000","--virtual-time-budget=12000",
             "--allow-file-access-from-files",url], capture_output=True, timeout=90)
     except Exception as ex:
         print("map shot failed:",ex); return None
