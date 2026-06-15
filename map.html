@@ -28,7 +28,12 @@
       background: var(--bg-dark);
       color: var(--text);
     }
-    #map { height: 100vh; width: 100%; }
+    #map { height: calc(100vh - 52px); width: 100%; margin-top: 52px; }
+    .appbar{position:fixed;top:0;left:0;right:0;height:52px;background:#0f2742;color:#fff;display:flex;align-items:center;gap:10px;padding:0 14px;z-index:1100;box-shadow:0 2px 8px rgba(0,0,0,.25);box-sizing:border-box;}
+    .appbar img{height:28px}
+    .appbar .t{font:600 15px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;letter-spacing:.02em}
+    .appbar .sp{flex:1}
+    .appbar a.bk{color:#cdd7e3;text-decoration:none;font:600 13px -apple-system,'Segoe UI',Roboto,sans-serif}
     
     /* Dark leaflet popup - HIDDEN (using custom info panel) */
     .leaflet-popup { display: none !important; }
@@ -421,10 +426,10 @@
     const VIS_SHAPES_FN = () => AREA_TAG ? SHAPES.filter(s => (s.areas||[]).includes(AREA_TAG)) : SHAPES;
     document.addEventListener('DOMContentLoaded', () => {
       document.title = 'SFLA — ' + AREA_LABEL;
-      const chip = document.createElement('a');
-      chip.href = 'index.html'; chip.textContent = '‹ Areas · SFLA — ' + AREA_LABEL;
-      chip.style.cssText = 'position:absolute;top:10px;left:10px;z-index:1000;background:#0f2742;color:#fff;text-decoration:none;padding:8px 14px;border-radius:10px;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.25);';
-      document.body.appendChild(chip);
+      const bar = document.createElement('div'); bar.className = 'appbar';
+      bar.innerHTML = '<img src="thc_logo.png" alt="THC"><span class="t">SFLA — ' + AREA_LABEL + '</span><span class="sp"></span><a class="bk" href="index.html">‹ All areas</a>';
+      document.body.appendChild(bar);
+      try { if (typeof map !== 'undefined' && map) setTimeout(() => map.invalidateSize(), 150); } catch (e) {}
     });
     
     // Colors
@@ -491,7 +496,7 @@
     }
     
     // Map layers
-    const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '©OpenStreetMap, ©CARTO'
     });
     const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -714,8 +719,8 @@
         const poly = L.polygon(shape.coords, {
           color: color,
           fillColor: color,
-          fillOpacity: 0.4,
-          weight: 5  // Increased from 2
+          fillOpacity: 0.45,
+          weight: 1.6
         }).addTo(map);
         
         poly.on('click', (e) => {
