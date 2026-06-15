@@ -57,6 +57,21 @@ def api_get(table, params=''):
 def month_range(y,m):
     s=datetime(y,m,1); e=datetime(y+(1 if m==12 else 0),(m%12)+1,1); return s,e
 
+def screenshot_map(slug):
+    """Headless-Chrome capture of the area map (satellite + status-coloured pads + routes)."""
+    import subprocess, tempfile
+    chrome="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    if not os.path.exists(chrome): return None
+    out=tempfile.mktemp(suffix='.png')
+    url=f"file://{HERE}/mapshot.html?area={slug}"
+    try:
+        subprocess.run([chrome,"--headless","--disable-gpu","--hide-scrollbars",
+            f"--screenshot={out}","--window-size=1200,820","--virtual-time-budget=12000",
+            "--allow-file-access-from-files",url], capture_output=True, timeout=90)
+    except Exception as ex:
+        print("map shot failed:",ex); return None
+    return out if os.path.exists(out) else None
+
 class SFLAReport(FPDF):
     def __init__(self, title, month_str):
         super().__init__(); self.title_str=title; self.month_str=month_str
@@ -118,7 +133,16 @@ def generate(area_slug, year, month):
         pct=round(c/total*100,1) if total else 0
         pdf.status_dot(st); pdf.set_font('Helvetica','',10); pdf.set_text_color(*DARK)
         pdf.cell(0,6,f'{st}: {c} ({pct}%)', new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(4)
+    pdf.ln(2)
+
+    # === SITE MAP OVERVIEW ===
+    shot=screenshot_map(area_slug)
+    if shot:
+        pdf.section_title('Site Map Overview')
+        pdf.image(shot, x=(210-150)/2, w=150)
+        pdf.ln(4)
+        try: os.remove(shot)
+        except OSError: pass
 
     pdf.section_title(f'Change Log - {month_str}')
     if not cd:
