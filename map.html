@@ -695,12 +695,13 @@
             weight: 2,
             fillOpacity: 0.9
           }).addTo(map);
-          marker.bindTooltip(pt.name, {
+          marker.bindTooltip(pt.name.split(' - ')[0].trim(), {
             permanent: true,
             direction: 'right',
             offset: [8, 0],
             className: 'gps-label'
           });
+          marker.bindPopup(`<div class="popup-name">${pt.name}</div>`);
         });
       }
     }
