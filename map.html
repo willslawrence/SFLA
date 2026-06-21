@@ -752,6 +752,10 @@
             iconSize: null
           })
         }).addTo(map);
+        label.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          showRadialMenu(shape, poly, poly.getBounds().getCenter());
+        });
         labels[shape.name] = label;
       });
       // center/zoom the map on this area's pads
