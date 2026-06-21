@@ -11,13 +11,38 @@
  */
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
 export default {
   async fetch(req, env) {
     if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
+
+    // Live read: return current status for every SFLA (no PIN — statuses aren't sensitive).
+    if (req.method === "GET") {
+      const BASE = env.BASE_ID, TABLE = encodeURIComponent(env.TABLE), KEY = env.AIRTABLE_TOKEN;
+      const H = { Authorization: `Bearer ${KEY}` };
+      const out = {};
+      let offset = "";
+      try {
+        do {
+          const url = `https://api.airtable.com/v0/${BASE}/${TABLE}?pageSize=100` + (offset ? `&offset=${offset}` : "");
+          const page = await (await fetch(url, { headers: H })).json();
+          (page.records || []).forEach(r => {
+            const f = r.fields || {};
+            const name = f["SFLA Name"];
+            if (name) out[name] = { status: f.Status || null, lastChecked: f.LastChecked || null,
+              checkCount: f.CheckCount || 0, notes: f.Notes || "" };
+          });
+          offset = page.offset || "";
+        } while (offset);
+      } catch (e) {
+        return json({ error: "read failed", detail: String(e) }, 502);
+      }
+      return json({ ok: true, sites: out });
+    }
+
     if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
     let body;

@@ -713,6 +713,17 @@
           const p = f.properties;
           siteData[p.name] = { fields: { 'SFLA Name': p.name, Status: p.status, LastChecked: p.lastChecked, CheckCount: p.checkCount, Notes: p.notes } };
         });
+        // Overlay LIVE status from the Worker so taps persist across reloads (falls back to baked snapshot).
+        if (WORKER_URL) {
+          try {
+            const live = await (await fetch(WORKER_URL)).json();
+            if (live && live.sites) {
+              Object.entries(live.sites).forEach(([name, s]) => {
+                siteData[name] = { fields: { 'SFLA Name': name, Status: s.status, LastChecked: s.lastChecked, CheckCount: s.checkCount, Notes: s.notes } };
+              });
+            }
+          } catch (e) { console.warn('Live status unavailable, using baked snapshot:', e); }
+        }
         renderRoutes();
         renderGPSPoints();
         renderShapes();
