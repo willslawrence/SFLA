@@ -11,7 +11,7 @@ Run:
   e.g.  python3 generate_report.py uam 2026 6
         python3 generate_report.py all          (all four, current month)
 
-Token: read from env AIRTABLE_KEY, else from config.local.json {"apiKey": "..."} (untracked).
+Reads come from the Cloudflare Worker (token held server-side) — no Airtable token needed here.
 """
 import json, sys, os
 from datetime import datetime, timedelta
@@ -20,8 +20,7 @@ import urllib.request, urllib.parse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOGO_PATH = os.path.join(HERE, 'thc_logo.png')
-BASE_ID = 'appBJW3FvPw5c659F'
-TABLE = 'SFLA Sites v2'
+WORKER = 'https://sfla-write.thehelicopter.workers.dev'  # reads come from the Worker; no Airtable token in this client
 OUT_DIR = ('/Users/willlawrence/Library/CloudStorage/OneDrive-TheHelicopterCompany/'
            'H125 Pilots - Documents/Missions/Riyadh UAM/SFLA Monthly Reports')
 
@@ -32,27 +31,22 @@ AREAS = {
     'najd':      ('NAJD',      'NAJD'),
 }
 
-def get_key():
-    k = os.environ.get('AIRTABLE_KEY')
-    if k: return k
-    cfg = os.path.join(HERE, 'config.local.json')
-    if os.path.exists(cfg):
-        return json.load(open(cfg)).get('apiKey')
-    raise SystemExit('No token. Set AIRTABLE_KEY env or create config.local.json {"apiKey": "..."}')
-
-API_KEY = get_key()
 DARK=(40,40,40); MID=(120,120,120); LIGHT=(200,200,200); ROW_ALT=(248,248,248)
 STATUS_COLORS={'Suitable':(76,175,80),'Unsuitable':(107,114,128),'New SFLA':(244,67,54),'Pending Recheck':(227,181,5)}
 
-def api_get(table, params=''):
-    url=f'https://api.airtable.com/v0/{BASE_ID}/{urllib.parse.quote(table)}?pageSize=100{params}'
-    out=[]
-    while url:
-        req=urllib.request.Request(url, headers={'Authorization':f'Bearer {API_KEY}'})
-        resp=json.loads(urllib.request.urlopen(req).read())
-        out.extend(resp.get('records',[])); off=resp.get('offset')
-        url=f'https://api.airtable.com/v0/{BASE_ID}/{urllib.parse.quote(table)}?pageSize=100&offset={off}' if off else None
-    return out
+def _worker_get(url):
+    # Cloudflare 403s the default Python-urllib UA, so present a normal one.
+    req=urllib.request.Request(url, headers={'User-Agent':'thc-sfla-report/1.0'})
+    return json.loads(urllib.request.urlopen(req, timeout=30).read())
+
+def worker_sites():
+    """{name: {status,lastChecked,checkCount,notes,areas}} — live, from the Worker."""
+    return _worker_get(WORKER).get('sites', {})
+
+def worker_changelog(s, e):
+    """Status-change log between s and e (datetimes), from the Worker."""
+    qs=urllib.parse.urlencode({'log':'1','from':s.strftime('%Y-%m-%dT00:00:00'),'to':e.strftime('%Y-%m-%dT00:00:00')})
+    return _worker_get(f'{WORKER}/?{qs}').get('changeLog', [])
 
 def month_range(y,m):
     s=datetime(y,m,1); e=datetime(y+(1 if m==12 else 0),(m%12)+1,1); return s,e
@@ -99,25 +93,20 @@ def generate(area_slug, year, month):
     label, tag = AREAS[area_slug]
     s,e = month_range(year,month); month_str=s.strftime('%B %Y')
     print(f'Generating {label} SFLA report for {month_str}...')
-    sites=api_get(TABLE)
+    sites=worker_sites()
     sd=[]; total_checks=0; area_names=set()
-    for r in sites:
-        f=r.get('fields',{})
-        if tag not in (f.get('Areas') or []): continue
-        nm=f.get('SFLA Name','')
-        area_names.add(nm); total_checks+=f.get('CheckCount',0)
-        sd.append({'name':nm,'status':f.get('Status','Unknown'),'last_checked':f.get('LastChecked','')})
+    for nm,info in sites.items():
+        if tag not in (info.get('areas') or []): continue
+        area_names.add(nm); total_checks+=info.get('checkCount',0)
+        sd.append({'name':nm,'status':info.get('status','Unknown'),'last_checked':info.get('lastChecked') or ''})
     sd.sort(key=lambda x:x['name'])
 
-    formula=f"AND(IS_AFTER(Timestamp, '{s.strftime('%Y-%m-%dT00:00:00')}'), IS_BEFORE(Timestamp, '{e.strftime('%Y-%m-%dT00:00:00')}'))"
-    params=f'&filterByFormula={urllib.parse.quote(formula)}&sort%5B0%5D%5Bfield%5D=Timestamp&sort%5B0%5D%5Bdirection%5D=desc'
-    changes=api_get('Change Log', params)+api_get('All Change Log', params)  # both historical logs
+    changes=worker_changelog(s,e)  # both historical logs, filtered to the month, served by the Worker
     cd=[]
-    for r in changes:
-        f=r.get('fields',{})
-        if f.get('Name') not in area_names: continue
-        if (f.get('PreviousStatus') or '')==(f.get('NewStatus') or ''): continue  # only ACTUAL status changes, not re-checks
-        cd.append({'name':f.get('Name',''),'timestamp':f.get('Timestamp',''),'prev':f.get('PreviousStatus',''),'new':f.get('NewStatus',''),'notes':f.get('Notes','')})
+    for c in changes:
+        if c.get('name') not in area_names: continue
+        if (c.get('prev') or '')==(c.get('new') or ''): continue  # only ACTUAL status changes, not re-checks
+        cd.append({'name':c.get('name',''),'timestamp':c.get('timestamp',''),'prev':c.get('prev',''),'new':c.get('new',''),'notes':c.get('notes','')})
     cd.sort(key=lambda x:x['timestamp'], reverse=True)
 
     counts={}

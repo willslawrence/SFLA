@@ -1,40 +1,20 @@
 #!/usr/bin/env python3
-"""Regenerate data.geojson from Airtable (live status) + geometry.json (committed shapes).
+"""Regenerate data.geojson from the Cloudflare Worker (live status) + geometry.json (committed shapes).
 Status is BAKED IN at build time so the public site needs NO Airtable token.
-Run:  AIRTABLE_KEY=pat... python3 build.py
+Reads come from the Worker GET (token held server-side); no Airtable key needed here.
+Run:  python3 build.py
 """
-import json, os, urllib.request, urllib.parse
+import json, os, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 cfg = json.load(open(os.path.join(HERE, "config.json")))
-BASE = cfg["airtable"]["baseId"]
-TABLE = cfg["airtable"]["tableName"]
-KEY = os.environ.get("AIRTABLE_KEY")
-if not KEY:
-    raise SystemExit("Set AIRTABLE_KEY env var (a read token for the base).")
+WORKER = cfg.get("workerUrl", "https://sfla-write.thehelicopter.workers.dev")
 
-def get_all(table):
-    recs, off = [], None
-    while True:
-        url = f"https://api.airtable.com/v0/{BASE}/{urllib.parse.quote(table)}?pageSize=100" + (f"&offset={off}" if off else "")
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {KEY}"})
-        d = json.load(urllib.request.urlopen(req))
-        recs += d["records"]; off = d.get("offset")
-        if not off: break
-    return recs
-
-status_by = {}
-for r in get_all(TABLE):
-    f = r["fields"]
-    n = f.get("SFLA Name")
-    if not n: continue
-    status_by[n] = {
-        "status": f.get("Status", "New SFLA"),
-        "lastChecked": f.get("LastChecked"),
-        "checkCount": f.get("CheckCount", 0),
-        "notes": f.get("Notes", ""),
-        "areas": f.get("Areas", []),
-    }
+# live status for every SFLA, straight from the Worker (no token in this client).
+# Cloudflare 403s the default Python-urllib UA, so present a normal one.
+req = urllib.request.Request(WORKER, headers={"User-Agent": "thc-sfla-report/1.0"})
+resp = json.loads(urllib.request.urlopen(req, timeout=30).read())
+status_by = resp.get("sites", {})
 
 geom = json.load(open(os.path.join(HERE, "geometry.json")))
 feats = []
