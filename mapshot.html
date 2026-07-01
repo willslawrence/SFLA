@@ -21,10 +21,10 @@
 <script>
 const AREA_TAGS={uam:'UAM',malham:'Malham','city-tour':'City Tour',najd:'NAJD'};
 const TAG=AREA_TAGS[new URLSearchParams(location.search).get('area')]||null;
-const C={green:'#2e9e4f',yellow:'#e3b505',orange:'#e8730c',red:'#cf2330',grey:'#8a8f98'};
+const C={green:'#2e9e4f',yellow:'#e3b505',orange:'#e8730c',blue:'#2196f3',grey:'#8a8f98'};
 function color(p){
   if(p.status==='Unsuitable')return C.grey;
-  if(p.status==='New SFLA')return C.red;
+  if(p.status==='New SFLA')return C.blue;
   let d=9999; if(p.lastChecked)d=(Date.now()-Date.parse(p.lastChecked))/864e5;
   if(p.status==='Pending Recheck')return d>28?C.orange:C.yellow;
   if(d<=20)return C.green; if(d<=28)return C.yellow; return C.orange;
@@ -34,12 +34,20 @@ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/
 // routes (approved) + VRP under the SFLAs
 if(typeof ROUTES!=='undefined') ROUTES.forEach(r=>L.polyline(r.coords,{color:'#39d353',weight:2.5,opacity:.9,dashArray:'6,6'}).addTo(map));
 if(typeof GPS_POINTS!=='undefined') GPS_POINTS.forEach(p=>L.circleMarker([p.lat,p.lng],{radius:3,color:'#fff',weight:1,fillColor:'#1565c0',fillOpacity:1}).addTo(map));
-fetch('data.geojson').then(r=>r.json()).then(gj=>{
+const SLUG=new URLSearchParams(location.search).get('area')||null;
+Promise.all([
+  fetch('config.json').then(r=>r.json()).catch(()=>null),
+  fetch('data.geojson').then(r=>r.json())
+]).then(([cfg,gj])=>{
   const feats=gj.features.filter(f=>!TAG||(f.properties.areas||[]).includes(TAG));
   const layer=L.geoJSON({type:'FeatureCollection',features:feats},{
     style:f=>{const c=color(f.properties);return{color:c,weight:1.4,fillColor:c,fillOpacity:.55}}
   }).addTo(map);
-  if(feats.length)map.fitBounds(layer.getBounds().pad(0.04),{maxZoom:16});
+  // Prefer the per-area framing from config.json (matches the website); fitBounds
+  // only as a fallback — fitBounds zooms out to catch outlying pads.
+  const areaCfg=(cfg&&SLUG&&cfg.areas)?cfg.areas[SLUG]:null;
+  if(areaCfg&&areaCfg.center&&areaCfg.zoom) map.setView(areaCfg.center,areaCfg.zoom);
+  else if(feats.length) map.fitBounds(layer.getBounds().pad(0.04),{maxZoom:16});
   else map.setView([24.78,46.66],11);
   window.__shotReady=true;
 });
@@ -48,7 +56,7 @@ const lg=document.createElement('div');lg.className='legend';
 lg.innerHTML=`<div class="row"><span class="sw" style="background:${C.green}"></span>Suitable (≤20d)</div>
 <div class="row"><span class="sw" style="background:${C.yellow}"></span>Recheck due</div>
 <div class="row"><span class="sw" style="background:${C.orange}"></span>Overdue</div>
-<div class="row"><span class="sw" style="background:${C.red}"></span>New</div>
+<div class="row"><span class="sw" style="background:${C.blue}"></span>New</div>
 <div class="row"><span class="sw" style="background:${C.grey}"></span>Unsuitable</div>`;
 document.body.appendChild(lg);
 </script>

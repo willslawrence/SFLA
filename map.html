@@ -206,6 +206,7 @@
     .status-suitable-old { background: var(--suitable-old); color: white; }
     .status-unsuitable { background: var(--unsuitable); color: white; }
     .status-pending { background: var(--pending); color: white; }
+    .status-new { background: #2196f3; color: white; }
     
     .popup-notes {
       margin: 14px 0;
@@ -383,7 +384,7 @@
     <div class="legend-row"><span class="dot" style="background:#4caf50"></span> Current</div>
     <div class="legend-row"><span class="dot" style="background:#ffeb3b"></span> Review</div>
     <div class="legend-row"><span class="dot" style="background:#ff9800"></span> Review Overdue</div>
-    <div class="legend-row"><span class="dot" style="background:#f44336"></span> New SFLA</div>
+    <div class="legend-row"><span class="dot" style="background:#2196f3"></span> New SFLA</div>
   </div>
   
   <div class="controls">
@@ -420,7 +421,7 @@
     const AIRTABLE_TABLE = 'SFLA Sites v2';
     // No Airtable token in the browser. Reads = baked data.geojson; writes = PIN-gated Cloudflare Worker.
     const WORKER_URL = 'https://sfla-write.thehelicopter.workers.dev';
-    function getPin(){ let p=localStorage.getItem('sflaPin'); if(!p){ p=prompt('Enter THC SFLA update PIN:'); if(p) localStorage.setItem('sflaPin',p);} return p; }
+    function getPin(){ let p=localStorage.getItem('sflaPin'); if(!p){ p=prompt('Enter the THC SFLA update PIN — this is the same as the company iPad passcode:'); if(p) localStorage.setItem('sflaPin',p);} return p; }
     const AREA_TAGS = {uam:'UAM', malham:'Malham', 'city-tour':'City Tour', najd:'NAJD'};
     const AREA_TAG = AREA_TAGS[new URLSearchParams(location.search).get('area')] || null;
     const AREA_LABEL = AREA_TAG || 'All Areas';
@@ -440,6 +441,7 @@
       suitableOld: '#f97316',
       unsuitable: '#6b7280',
       pending: '#ef4444',
+      newSfla: '#2196f3',
       route: '#e879f9'
     };
     
@@ -454,8 +456,9 @@
     // Get color based on status and age
     function getShapeColor(status, lastChecked) {
       if (status === 'Unsuitable') return COLORS.unsuitable;
-      if (status === 'Pending' || status === 'New SFLA' || !status || status === 'Unknown') return COLORS.pending;
-      
+      if (status === 'New SFLA') return COLORS.newSfla;
+      if (status === 'Pending' || !status || status === 'Unknown') return COLORS.pending;
+
       if (status === 'Suitable') {
         const days = daysSince(lastChecked);
         if (days >= 28) return COLORS.suitableOld;    // 4+ weeks
@@ -469,7 +472,8 @@
     // Get status class for popup
     function getStatusClass(status, lastChecked) {
       if (status === 'Unsuitable') return 'status-unsuitable';
-      if (status === 'Pending' || status === 'New SFLA' || !status || status === 'Unknown') return 'status-pending';
+      if (status === 'New SFLA') return 'status-new';
+      if (status === 'Pending' || !status || status === 'Unknown') return 'status-pending';
       
       if (status === 'Suitable') {
         const days = daysSince(lastChecked);
@@ -923,7 +927,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, status, notes, pin })
         });
-        if (resp.status === 401) { localStorage.removeItem('sflaPin'); throw new Error('Wrong PIN'); }
+        if (resp.status === 401) { localStorage.removeItem('sflaPin'); throw new Error('Wrong PIN — it is the company iPad passcode. Tap the pad again to retry.'); }
         if (!resp.ok) throw new Error('Save failed (' + resp.status + ')');
         siteData[name] = { fields: { 'SFLA Name': name, Status: status, LastChecked: today, Notes: notes,
           CheckCount: (siteData[name]?.fields?.CheckCount || 0) + 1 } };

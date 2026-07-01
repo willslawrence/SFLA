@@ -1,3 +1,4 @@
 config.local.json
 .venv/
 logs/
+__pycache__/

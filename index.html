@@ -43,11 +43,11 @@
 <div id="root"></div>
 <script>
 const COLORS = {
-  green:"#2e9e4f", yellow:"#e3b505", orange:"#e8730c", red:"#cf2330", grey:"#8a8f98"
+  green:"#2e9e4f", yellow:"#e3b505", orange:"#e8730c", blue:"#2196f3", grey:"#8a8f98"
 };
 function statusColor(p){
   if(p.status==="Unsuitable") return COLORS.grey;
-  if(p.status==="New SFLA")   return COLORS.red;
+  if(p.status==="New SFLA")   return COLORS.blue;
   // age since lastChecked
   let days = 9999;
   if(p.lastChecked){ days = Math.floor((Date.now()-Date.parse(p.lastChecked))/86400000); }
@@ -98,7 +98,7 @@ function renderMap(cfg,data){
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     {maxZoom:19,attribution:'© OpenStreetMap, © CARTO'}).addTo(map);
   const feats=data.features.filter(f=>f.properties.areas.includes(a.tag));
-  const tally={green:0,yellow:0,orange:0,red:0,grey:0};
+  const tally={green:0,yellow:0,orange:0,blue:0,grey:0};
   const layer=L.geoJSON({type:'FeatureCollection',features:feats},{
     style:f=>{const c=statusColor(f.properties);
       for(const k in COLORS) if(COLORS[k]===c) tally[k]++;
@@ -116,14 +116,14 @@ function renderMap(cfg,data){
   lg.innerHTML=`<div class="row"><span class="sw" style="background:${COLORS.green}"></span>Suitable, current (≤20d)</div>
     <div class="row"><span class="sw" style="background:${COLORS.yellow}"></span>Recheck due (21–28d)</div>
     <div class="row"><span class="sw" style="background:${COLORS.orange}"></span>Overdue (&gt;28d)</div>
-    <div class="row"><span class="sw" style="background:${COLORS.red}"></span>New / unchecked</div>
+    <div class="row"><span class="sw" style="background:${COLORS.blue}"></span>New / unchecked</div>
     <div class="row"><span class="sw" style="background:${COLORS.grey}"></span>Unsuitable</div>`;
   document.body.appendChild(lg);
   const ct=L.DomUtil.create('div','counts');
   ct.innerHTML=`<b>${a.label}: ${feats.length} SFLAs</b><br>
     <span style="color:${COLORS.green}">●</span> ${tally.green} current ·
     <span style="color:${COLORS.orange}">●</span> ${tally.orange+tally.yellow} due ·
-    <span style="color:${COLORS.red}">●</span> ${tally.red} new`;
+    <span style="color:${COLORS.blue}">●</span> ${tally.blue} new`;
   document.body.appendChild(ct);
 }
 </script>

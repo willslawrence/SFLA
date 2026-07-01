@@ -32,7 +32,7 @@ AREAS = {
 }
 
 DARK=(40,40,40); MID=(120,120,120); LIGHT=(200,200,200); ROW_ALT=(248,248,248)
-STATUS_COLORS={'Suitable':(76,175,80),'Unsuitable':(107,114,128),'New SFLA':(244,67,54),'Pending Recheck':(227,181,5)}
+STATUS_COLORS={'Suitable':(76,175,80),'Unsuitable':(107,114,128),'New SFLA':(33,150,243),'Pending Recheck':(227,181,5)}
 
 def _worker_get(url):
     # Cloudflare 403s the default Python-urllib UA, so present a normal one.
