@@ -19,6 +19,8 @@ status_by = resp.get("sites", {})
 geom = json.load(open(os.path.join(HERE, "geometry.json")))
 feats = []
 for name, g in geom.items():
+    if g.get("retired"):        # retired-Unsuitable: kept in geometry.json + master KMZ as
+        continue                # survey memory, but never rendered on the public map
     st = status_by.get(name, {})
     ring = g["ring"][:]
     if ring[0] != ring[-1]: ring.append(ring[0])
