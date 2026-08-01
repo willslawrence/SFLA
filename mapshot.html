@@ -29,26 +29,38 @@ function color(p){
   if(p.status==='Pending Recheck')return d>28?C.orange:C.yellow;
   if(d<=20)return C.green; if(d<=28)return C.yellow; return C.orange;
 }
-const map=L.map('map',{zoomControl:false,attributionControl:false});
+// zoomSnap:0 lets fitBounds use a fractional zoom. With the default snap of 1 it
+// rounds DOWN to the next whole level, which can leave ~2x more ground in frame
+// than the pads actually need (UAM: needs z12.6, snapped to z12 = 35 km for 20 km
+// of content). Fractional zoom is what makes the frame sit tight on the area.
+const map=L.map('map',{zoomControl:false,attributionControl:false,zoomSnap:0});
 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19}).addTo(map);
 // routes (approved) + VRP under the SFLAs
 if(typeof ROUTES!=='undefined') ROUTES.forEach(r=>L.polyline(r.coords,{color:'#39d353',weight:2.5,opacity:.9,dashArray:'6,6'}).addTo(map));
 if(typeof GPS_POINTS!=='undefined') GPS_POINTS.forEach(p=>L.circleMarker([p.lat,p.lng],{radius:3,color:'#fff',weight:1,fillColor:'#1565c0',fillOpacity:1}).addTo(map));
-const SLUG=new URLSearchParams(location.search).get('area')||null;
-Promise.all([
-  fetch('config.json').then(r=>r.json()).catch(()=>null),
-  fetch('data.geojson').then(r=>r.json())
-]).then(([cfg,gj])=>{
+fetch('data.geojson').then(r=>r.json()).then(gj=>{
   const feats=gj.features.filter(f=>!TAG||(f.properties.areas||[]).includes(TAG));
   const layer=L.geoJSON({type:'FeatureCollection',features:feats},{
     style:f=>{const c=color(f.properties);return{color:c,weight:1.4,fillColor:c,fillOpacity:.55}}
   }).addTo(map);
-  // Prefer the per-area framing from config.json (matches the website); fitBounds
-  // only as a fallback — fitBounds zooms out to catch outlying pads.
-  const areaCfg=(cfg&&SLUG&&cfg.areas)?cfg.areas[SLUG]:null;
-  if(areaCfg&&areaCfg.center&&areaCfg.zoom) map.setView(areaCfg.center,areaCfg.zoom);
-  else if(feats.length) map.fitBounds(layer.getBounds().pad(0.04),{maxZoom:16});
+  // FRAMING: always fit to the pads actually in this area — never a fixed zoom.
+  //
+  // Do NOT reintroduce config.json center/zoom here. Those are the WEBSITE's
+  // opening view (zoom 11 = ~69 km wide) and they have twice silently undone the
+  // report framing; at zoom 11 a ~20 km UAM cluster is rendered as "all of Riyadh".
+  // The report must frame the area in focus and nothing more, so it is derived from
+  // the data every run and cannot drift as pads are added, retired or re-tagged.
+  // Fit ALL pads (no outlier trimming) — this is a per-SFLA status report, so every
+  // shape in the area has to be inside the frame.
+  if(feats.length) map.fitBounds(layer.getBounds().pad(0.03),{maxZoom:16});
   else map.setView([24.78,46.66],11);
+  window.__shotZoom=map.getZoom();          // read back by the regression check
+  window.__shotBounds=map.getBounds().toBBoxString();
+  window.__shotCount=feats.length;
+  // Surfaced in the title (never drawn on the image) so a headless --dump-dom run
+  // can assert the framing without opening the PNG.
+  const b=map.getBounds(), km=(b.getEast()-b.getWest())*101;
+  document.title=`SHOT z=${map.getZoom()} pads=${feats.length} width=${km.toFixed(1)}km`;
   window.__shotReady=true;
 });
 // legend

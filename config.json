@@ -1,5 +1,6 @@
 {
   "airtable": { "baseId": "appBJW3FvPw5c659F", "tableName": "SFLA Sites v2" },
+  "_framing_note": "center/zoom below are the WEBSITE's opening view only (index.html / map.html). The monthly PDF report does NOT use them — mapshot.html fits to the pads in each area. Do not wire these into mapshot.html; doing so renders the report at ~69 km wide ('all of Riyadh'). Regressed twice: 2026-07-01 (90975f4), fixed again 2026-08-01.",
   "areas": {
     "uam":       { "label": "UAM",        "tag": "UAM",       "color": "#1565c0", "center": [24.79, 46.70], "zoom": 11 },
     "malham":    { "label": "Malham",     "tag": "Malham",    "color": "#2e7d32", "center": [24.95, 46.52], "zoom": 11 },
