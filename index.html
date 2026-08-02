@@ -28,6 +28,18 @@
   .card .sub{color:var(--muted);font-size:13px;margin-top:2px}
   .card .warn{color:var(--red);font-size:13px;margin-top:6px;font-weight:600}
   .dl{display:inline-block;margin-top:20px;background:var(--navy);color:#fff;text-decoration:none;padding:9px 16px;border-radius:10px;font-size:13px}
+  /* ForeFlight pack panel */
+  .ffpanel{margin-top:26px;background:#fff;border:1px solid var(--line);border-radius:16px;border-top:5px solid var(--navy);padding:20px 20px 18px;max-width:640px}
+  .ffhd{font-size:18px;font-weight:700;color:var(--navy)}
+  .ffsub{color:var(--muted);font-size:13.5px;margin:6px 0 16px;line-height:1.5}
+  .ffbtn{display:inline-block;background:var(--navy);color:#fff;text-decoration:none;padding:12px 20px;border-radius:12px;font-size:15px;font-weight:600}
+  .ffnote{color:var(--muted);font-size:12px;margin:8px 0 16px}
+  .ffsteps{margin:0 0 14px;padding-left:20px}
+  .ffsteps li{font-size:14px;line-height:1.55;margin:7px 0}
+  .ffsteps b{color:var(--navy)}
+  .ffupd{background:#f6f7f9;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.5;color:var(--ink)}
+  .ffupd b{color:var(--navy)}
+  .ffkmz{display:inline-block;margin-top:14px;color:var(--muted);font-size:12.5px;text-decoration:underline}
   /* map */
   #map{position:absolute;top:50px;left:0;right:0;bottom:0}
   .legend{position:absolute;bottom:18px;left:12px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;z-index:500;box-shadow:0 2px 10px rgba(0,0,0,.08)}
@@ -87,7 +99,19 @@ function renderLanding(cfg,data){
   root.innerHTML = header('THC — Safe Forced Landing Areas',false) +
     `<div class="wrap"><div class="lead">Pick an area. Each map shows only that area's SFLAs; a pad shared between areas appears in both.</div>
      <div class="grid">${cards}</div>
-     <a class="dl" href="THC_SFLA_master.kmz" download>⬇ Download master KMZ (all areas, colour-coded)</a></div>`;
+     <div class="ffpanel">
+       <div class="ffhd">✈️ ForeFlight — THC SFLA content pack</div>
+       <div class="ffsub">One import loads it all into ForeFlight and auto-updates when we push a change: the <b>SFLA areas</b>, the <b>UAM routes</b> (green = approved · red = not approved), and all <b>waypoints / VRPs</b> (labelled).</div>
+       <a class="ffbtn" href="https://foreflight.com/content?downloadURL=https://willslawrence.github.io/SFLA/THC-SFLA.zip">Import into ForeFlight</a>
+       <div class="ffnote">Open this page on the iPad that has ForeFlight installed, then tap the button.</div>
+       <ol class="ffsteps">
+         <li>Tap <b>Import into ForeFlight</b> — ForeFlight opens on the <b>Downloads</b> screen. Tap <b>OK</b> when it says the pack will be downloaded.</li>
+         <li>Go to <b>More → Custom Content</b>, find <b>THC SFLA</b>, and tap the blue <b>Download</b> button (downloads in a second or two).</li>
+         <li>Open <b>Maps</b> → <b>Layers</b>, scroll to the bottom (where KMZ layers sit) and <b>enable each THC layer</b>: Areas, Routes, Waypoints.</li>
+       </ol>
+       <div class="ffupd"><b>Getting updates later:</b> when we push a change, ForeFlight surfaces it under <b>More → Downloads</b> — pull down to refresh, or just re-tap <b>Import into ForeFlight</b> above to pull it now. (ForeFlight's automatic refresh can lag a few hours.)</div>
+       <a class="ffkmz" href="THC_SFLA_master.kmz" download>Fallback: download master KMZ (areas only)</a>
+     </div></div>`;
 }
 
 function renderMap(cfg,data){
