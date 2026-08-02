@@ -14,7 +14,7 @@ Re-run whenever the SFLA master KMZ (or waypoint sources) change, then commit + 
 The repo's THC_SFLA_master.kmz is the source of the area layer (kept current by the
 vault splice pipeline). Waypoint sources live in ./sources/ (copied from the vault).
 """
-import os, time, json, zipfile, shutil, tempfile
+import os, time, json, zipfile, shutil, tempfile, re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MASTER_KMZ = os.path.join(HERE, "THC_SFLA_master.kmz")
@@ -28,6 +28,76 @@ def kml_from_kmz(path):
         name = "doc.kml" if "doc.kml" in z.namelist() else next(
             n for n in z.namelist() if n.endswith(".kml"))
         return z.read(name).decode("utf-8")
+
+
+# VRP label style — mirrors the NAJD VRPs' #style1 (white LabelStyle) so ForeFlight
+# draws the name on the map instead of decluttering it. Category-VRP points only.
+_VRP_STYLE = (
+    '<Style id="thc_vrp">'
+    '<IconStyle><scale>0.9</scale>'
+    '<Icon><href>http://maps.google.com/mapfiles/kml/pushpin/blue-pushpin.png</href></Icon>'
+    '<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/></IconStyle>'
+    '<LabelStyle><color>ffffffff</color><scale>1</scale></LabelStyle>'
+    '</Style>'
+)
+_PM_RE = re.compile(r'<Placemark>(.*?)</Placemark>', re.S)
+_NAME_RE = re.compile(r'<name>(.*?)</name>', re.S)
+_DESC_RE = re.compile(r'<description>(.*?)</description>', re.S)
+
+
+def _vrp_code(name, area):
+    """Shorten a VRP name to its map code: drop the 'VRP' token, the trailing
+    area token, and any leading index number.  'A VRP RUH'->'A', 'KAFD_RUH'->'KAFD'."""
+    toks = [t for t in name.replace('_', ' ').split() if t.upper() != 'VRP']
+    while toks and area and toks[-1].upper() == area.upper():
+        toks.pop()
+    while toks and toks[0].isdigit():
+        toks.pop(0)
+    return ' '.join(toks).strip() or name
+
+
+def style_vrp_labels(kml):
+    """Inject the VRP LabelStyle and rewrite category-VRP placemarks to a short,
+    on-map code label (keeping the full name in the description).  De-dupes codes
+    that collide across areas (e.g. EAST GATE) by re-appending the area.
+    Returns (new_kml, [(full_name, code, area), ...])."""
+    kml = kml.replace('<Document>', '<Document>\n' + _VRP_STYLE, 1)
+
+    infos = []           # one entry per placemark, aligned to _PM_RE order; None = not a VRP
+    for m in _PM_RE.finditer(kml):
+        body = m.group(1)
+        dm, nm = _DESC_RE.search(body), _NAME_RE.search(body)
+        if not (dm and nm) or not dm.group(1).strip().endswith('- VRP'):
+            infos.append(None)
+            continue
+        area = dm.group(1).strip()[:-len('- VRP')].rstrip('- ').strip()
+        name = nm.group(1).strip()
+        infos.append({'area': area, 'name': name, 'code': _vrp_code(name, area)})
+
+    counts = {}
+    for i in infos:
+        if i:
+            counts[i['code']] = counts.get(i['code'], 0) + 1
+    for i in infos:
+        if i and counts[i['code']] > 1:                 # collision -> disambiguate by area
+            i['code'] = (i['code'] + ' ' + i['area']).strip()
+
+    seq = iter(infos)
+
+    def repl(m):
+        info = next(seq)
+        if not info:
+            return m.group(0)
+        body = _NAME_RE.sub('<name>%s</name>' % info['code'], m.group(1), count=1)
+        body = _DESC_RE.sub('<description>%s (%s)</description>' % (info['name'], info['area']),
+                            body, count=1)
+        if '<styleUrl>' not in body:
+            body = body.replace('<Point>', '<styleUrl>#thc_vrp</styleUrl><Point>', 1)
+        return '<Placemark>%s</Placemark>' % body
+
+    kml = _PM_RE.sub(repl, kml)
+    mapping = [(i['name'], i['code'], i['area']) for i in infos if i]
+    return kml, mapping
 
 
 def build():
@@ -63,6 +133,12 @@ def build():
             print(f"  WARN: missing waypoint source {src} — skipped")
             continue
         kml = kml_from_kmz(src)
+        if out_name == "THC Waypoints.kml":
+            kml, mapping = style_vrp_labels(kml)
+            print(f"  labeled {len(mapping)} VRPs (code = on-map label):")
+            for name, code, area in mapping:
+                flag = "  <-- disambiguated" if code.endswith(area) and code != name else ""
+                print(f"    {name:<32} -> {code}{flag}")
         wp_count += kml.count("<Point>")
         with open(os.path.join(root, "navdata", out_name), "w") as f:
             f.write(kml)
