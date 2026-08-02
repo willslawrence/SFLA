@@ -22,6 +22,18 @@ SOURCES = os.path.join(HERE, "sources")          # waypoint KMZ sources (committ
 OUT_ZIP = os.path.join(HERE, "THC-SFLA.zip")
 PACK_NAME = "THC SFLA"
 
+# UAM routes layer — built from the SAME source the Riyadh UAM Route Map uses
+# (vault scripts/data/uam-route-features.json), so a route-map update + a pack rebuild
+# stay in sync.  Falls back to the committed repo copy when the vault isn't mounted.
+_VAULT = "/Users/willlawrence/Library/CloudStorage/OneDrive-TheHelicopterCompany/THC Vault/THC"
+ROUTES_JSON = (os.environ.get("THC_ROUTES_JSON")
+               or os.path.join(_VAULT, "scripts", "data", "uam-route-features.json"))
+ROUTES_JSON_FALLBACK = os.path.join(SOURCES, "uam-route-features.json")
+ROUTE_CATS = {                                   # cat -> (KML aabbggrr colour, width)
+    "appr": ("ff0ec40e", 4),                     # approved  -> green
+    "na":   ("ff1111cc", 3),                     # not approved -> red
+}
+
 
 def kml_from_kmz(path):
     with zipfile.ZipFile(path) as z:
@@ -100,6 +112,39 @@ def style_vrp_labels(kml):
     return kml, mapping
 
 
+def _xml_escape(s):
+    return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def routes_layer_kml(json_path):
+    """Build a ForeFlight map-layer KML of the approved (green) + not-approved (red)
+    UAM routes from uam-route-features.json.  Coords in the JSON are [lat, lon] under
+    'c'; KML wants lon,lat,alt.  Returns (kml_text, [(cat, name), ...])."""
+    data = json.load(open(json_path, encoding="utf-8"))
+    styles = "".join(
+        '<Style id="rte_%s"><LineStyle><color>%s</color><width>%d</width></LineStyle>'
+        '<PolyStyle><fill>0</fill></PolyStyle></Style>' % (cat, col, w)
+        for cat, (col, w) in ROUTE_CATS.items()
+    )
+    placemarks, listing = [], []
+    for L in data.get("lines", []):
+        cat = L.get("cat")
+        if cat not in ROUTE_CATS:
+            continue
+        coords = " ".join("%s,%s,0" % (pt[1], pt[0]) for pt in L.get("c", []))
+        if not coords:
+            continue
+        placemarks.append(
+            '<Placemark><name>%s</name><styleUrl>#rte_%s</styleUrl>'
+            '<LineString><tessellate>1</tessellate><coordinates>%s</coordinates></LineString></Placemark>'
+            % (_xml_escape(str(L.get("n", ""))), cat, coords))
+        listing.append((cat, L.get("n", "")))
+    kml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+           '<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>THC Routes</name>\n'
+           + styles + "\n" + "\n".join(placemarks) + "\n</Document></kml>\n")
+    return kml, listing
+
+
 def build():
     version = int(time.strftime("%Y%m%d%H%M"))     # higher = newer; ForeFlight detects updates
     manifest = {
@@ -118,9 +163,23 @@ def build():
     with open(os.path.join(root, "manifest.json"), "w") as f:
         json.dump(manifest, f, indent=2)
 
-    # area layer (519 polygons incl. Ritz restricted) -> KML in layers/
+    # area layer (SFLA polygons incl. Ritz restricted) -> KML in layers/
     with open(os.path.join(root, "layers", "THC SFLA Areas.kml"), "w") as f:
         f.write(kml_from_kmz(MASTER_KMZ))
+
+    # UAM routes layer -> KML in layers/  (approved green + not-approved red)
+    routes_src = ROUTES_JSON if os.path.exists(ROUTES_JSON) else ROUTES_JSON_FALLBACK
+    if os.path.exists(routes_src):
+        shutil.copyfile(routes_src, ROUTES_JSON_FALLBACK)   # keep a committed provenance copy
+        routes_kml, routes_listing = routes_layer_kml(routes_src)
+        with open(os.path.join(root, "layers", "THC Routes.kml"), "w") as f:
+            f.write(routes_kml)
+        appr = sum(1 for c, _ in routes_listing if c == "appr")
+        na = sum(1 for c, _ in routes_listing if c == "na")
+        print(f"  routes layer: {appr} approved (green) + {na} not-approved (red) "
+              f"[source: {os.path.basename(routes_src)}]")
+    else:
+        print(f"  WARN: routes source not found ({routes_src}) — routes layer skipped")
 
     # waypoints -> KML in navdata/  (each source KMZ becomes one KML file)
     wp_sources = {
