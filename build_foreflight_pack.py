@@ -20,7 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MASTER_KMZ = os.path.join(HERE, "THC_SFLA_master.kmz")
 SOURCES = os.path.join(HERE, "sources")          # waypoint KMZ sources (committed)
 OUT_ZIP = os.path.join(HERE, "THC-SFLA.zip")
-PACK_NAME = "THC SFLA"
+PACK_NAME = "THC Part 135"
 
 # UAM routes layer — built from the SAME source the Riyadh UAM Route Map uses
 # (vault scripts/data/uam-route-features.json), so a route-map update + a pack rebuild
@@ -149,7 +149,7 @@ def build():
     version = int(time.strftime("%Y%m%d%H%M"))     # higher = newer; ForeFlight detects updates
     manifest = {
         "name": PACK_NAME,
-        "abbreviation": "THCSFLA",
+        "abbreviation": "THCP135",
         "version": version,
         "organizationName": "The Helicopter Company",
     }
