@@ -42,16 +42,25 @@ def kml_from_kmz(path):
         return z.read(name).decode("utf-8")
 
 
-# VRP label style — mirrors the NAJD VRPs' #style1 (white LabelStyle) so ForeFlight
-# draws the name on the map instead of decluttering it. Applied to EVERY waypoint.
-_WPT_STYLE = (
-    '<Style id="thc_wpt">'
-    '<IconStyle><scale>0.45</scale>'
-    '<Icon><href>http://maps.google.com/mapfiles/kml/pushpin/blue-pushpin.png</href></Icon>'
-    '<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/></IconStyle>'
-    '<LabelStyle><color>ffffffff</color><scale>1</scale></LabelStyle>'
-    '</Style>'
-)
+# Per-category marker styles: a distinct icon + colour per waypoint category, each with
+# a white LabelStyle so ForeFlight draws the name on the map. Icons are the google KML
+# icon set (mapfiles/kml/...) which ForeFlight renders; colour is KML aabbggrr and tints
+# the glyph. Category comes from the "Area - Category" description. Tune freely.
+_ICON_BASE = "http://maps.google.com/mapfiles/kml/"
+_ICON_SCALE = "0.6"                                    # ~half the old pushpin; adjust to taste
+CAT_STYLES = {                                         # category -> (icon href, colour aabbggrr)
+    "VRP":           ("shapes/triangle.png",        "ffff0000"),  # blue triangle
+    "Hospitals":     ("shapes/hospitals.png",       "ff0000ff"),  # red
+    "Heli/Airports": ("shapes/heliport.png",        "ffffffff"),  # heliport glyph
+    "Ferry":         ("shapes/ferry.png",           "ffffffff"),  # ferry
+    "Info":          ("shapes/placemark_circle.png","ff00ffff"),  # yellow dot
+    "Fun":           ("shapes/star.png",            "ff0080ff"),  # orange star
+    "Rally":         ("shapes/flag.png",            "ff0080ff"),  # orange flag
+    "Alula":         ("shapes/star.png",            "ff00ffff"),  # landmark
+    "Neom":          ("shapes/star.png",            "ff00ffff"),  # landmark
+}
+_DEFAULT_STYLE = ("shapes/placemark_circle.png",    "ffff0000")   # blue dot — any other category
+
 _PM_RE = re.compile(r'<Placemark>(.*?)</Placemark>', re.S)
 _NAME_RE = re.compile(r'<name>(.*?)</name>', re.S)
 _DESC_RE = re.compile(r'<description>(.*?)</description>', re.S)
@@ -68,16 +77,27 @@ def _vrp_code(name, area):
     return ' '.join(toks).strip() or name
 
 
-def style_waypoint_labels(kml):
-    """Inject a LabelStyle on EVERY waypoint placemark so ForeFlight draws the name
-    on the map (not just category-VRP points).  VRP placemarks are additionally
-    shortened to their on-map code (full name kept in the description; codes that
-    collide across areas are de-duped by re-appending the area); all other
-    waypoints keep their full name as the label.
-    Returns (new_kml, [(full_name, code, area), ...]) for the VRPs that were shortened."""
-    kml = kml.replace('<Document>', '<Document>\n' + _WPT_STYLE, 1)
+def _style_id(cat):
+    sid = re.sub(r'[^a-z0-9]+', '_', cat.lower()).strip('_')
+    return "thc_" + (sid or "default")
 
-    infos = []           # one entry per placemark, aligned to _PM_RE order; None = no <name>
+
+def _style_block(sid, href, color):
+    return (
+        '<Style id="%s"><IconStyle><color>%s</color><scale>%s</scale>'
+        '<Icon><href>%s%s</href></Icon>'
+        '<hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/></IconStyle>'
+        '<LabelStyle><color>ffffffff</color><scale>1</scale></LabelStyle></Style>'
+        % (sid, color, _ICON_SCALE, _ICON_BASE, href))
+
+
+def style_waypoint_labels(kml):
+    """Label EVERY waypoint and give it a per-category marker (VRP = blue triangle,
+    Hospitals = red, Heli/Airports = heliport, etc.; unknown categories = blue dot).
+    VRPs are additionally shortened to their on-map code (full name kept in the
+    description; codes colliding across areas are de-duped by area).
+    Returns (new_kml, [(full_name, code, area), ...]) for the shortened VRPs."""
+    infos, used = [], {}     # infos aligned to _PM_RE order (None = no <name>); used = styles seen
     for m in _PM_RE.finditer(kml):
         body = m.group(1)
         dm, nm = _DESC_RE.search(body), _NAME_RE.search(body)
@@ -85,20 +105,27 @@ def style_waypoint_labels(kml):
             infos.append(None)
             continue
         desc = dm.group(1).strip() if dm else ''
-        if desc.endswith('- VRP'):
+        cat = desc.split(' - ')[-1].strip() if ' - ' in desc else ''
+        href, color = CAT_STYLES.get(cat, _DEFAULT_STYLE)
+        sid = _style_id(cat) if cat in CAT_STYLES else "thc_default"
+        used[sid] = (href, color)
+        info = {'sid': sid, 'vrp': cat == 'VRP'}
+        if info['vrp']:
             area = desc[:-len('- VRP')].rstrip('- ').strip()
             name = nm.group(1).strip()
-            infos.append({'vrp': True, 'area': area, 'name': name, 'code': _vrp_code(name, area)})
-        else:
-            infos.append({'vrp': False})     # non-VRP: label it, but keep its full name
+            info.update(area=area, name=name, code=_vrp_code(name, area))
+        infos.append(info)
 
-    counts = {}
+    counts = {}                                          # de-dup VRP codes across areas
     for i in infos:
         if i and i.get('vrp'):
             counts[i['code']] = counts.get(i['code'], 0) + 1
     for i in infos:
-        if i and i.get('vrp') and counts[i['code']] > 1:   # collision -> disambiguate by area
+        if i and i.get('vrp') and counts[i['code']] > 1:
             i['code'] = (i['code'] + ' ' + i['area']).strip()
+
+    styles = "".join(_style_block(sid, h, c) for sid, (h, c) in sorted(used.items()))
+    kml = kml.replace('<Document>', '<Document>\n' + styles, 1)
 
     seq = iter(infos)
 
@@ -112,7 +139,7 @@ def style_waypoint_labels(kml):
             body = _DESC_RE.sub('<description>%s (%s)</description>' % (info['name'], info['area']),
                                 body, count=1)
         if '<styleUrl>' not in body:
-            body = body.replace('<Point>', '<styleUrl>#thc_wpt</styleUrl><Point>', 1)
+            body = body.replace('<Point>', '<styleUrl>#%s</styleUrl><Point>' % info['sid'], 1)
         return '<Placemark>%s</Placemark>' % body
 
     kml = _PM_RE.sub(repl, kml)
@@ -202,7 +229,7 @@ def build():
         kml = kml_from_kmz(src)
         if out_name == "THC Waypoints.kml":
             kml, mapping = style_waypoint_labels(kml)
-            total = kml.count('styleUrl>#thc_wpt')
+            total = kml.count('styleUrl>#thc_')
             print(f"  labeled {total} waypoints ({len(mapping)} VRPs shortened to codes):")
             for name, code, area in mapping:
                 flag = "  <-- disambiguated" if code.endswith(area) and code != name else ""
