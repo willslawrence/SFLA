@@ -29,6 +29,11 @@ _VAULT = "/Users/willlawrence/Library/CloudStorage/OneDrive-TheHelicopterCompany
 ROUTES_JSON = (os.environ.get("THC_ROUTES_JSON")
                or os.path.join(_VAULT, "scripts", "data", "uam-route-features.json"))
 ROUTES_JSON_FALLBACK = os.path.join(SOURCES, "uam-route-features.json")
+# Majmaah Corridor overlay (centreline + gates + OER39 restricted) — built in the vault by
+# scripts/majmaah-corridor-kmz.py; rides in the pack as its own toggleable map layer.
+MAJMAAH_KMZ = (os.environ.get("THC_MAJMAAH_KMZ")
+               or os.path.join(_VAULT, "reference", "uam-kmz", "Majmaah Corridor.kmz"))
+MAJMAAH_KMZ_FALLBACK = os.path.join(SOURCES, "Majmaah Corridor.kmz")
 ROUTE_CATS = {                                   # cat -> (KML aabbggrr colour, width)
     "appr": ("ff0ec40e", 4),                     # approved  -> green
     "na":   ("ff1111cc", 3),                     # not approved -> red
@@ -215,6 +220,18 @@ def build():
               f"[source: {os.path.basename(routes_src)}]")
     else:
         print(f"  WARN: routes source not found ({routes_src}) — routes layer skipped")
+
+    # Majmaah Corridor overlay -> KML in layers/  (its own toggleable layer; keeps its own
+    # styling — shaded corridor, gates with contact freq, OER39 restricted boundary)
+    maj_src = MAJMAAH_KMZ if os.path.exists(MAJMAAH_KMZ) else MAJMAAH_KMZ_FALLBACK
+    if os.path.exists(maj_src):
+        if os.path.abspath(maj_src) != os.path.abspath(MAJMAAH_KMZ_FALLBACK):
+            shutil.copyfile(maj_src, MAJMAAH_KMZ_FALLBACK)   # committed provenance copy
+        with open(os.path.join(root, "layers", "Majmaah Corridor.kml"), "w") as f:
+            f.write(kml_from_kmz(maj_src))
+        print(f"  Majmaah Corridor layer added [source: {os.path.basename(maj_src)}]")
+    else:
+        print(f"  WARN: Majmaah Corridor source not found ({maj_src}) — layer skipped")
 
     # waypoints -> KML in navdata/  (each source KMZ becomes one KML file)
     wp_sources = {
