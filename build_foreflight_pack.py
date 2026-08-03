@@ -46,7 +46,7 @@ def kml_from_kmz(path):
 # draws the name on the map instead of decluttering it. Applied to EVERY waypoint.
 _WPT_STYLE = (
     '<Style id="thc_wpt">'
-    '<IconStyle><scale>0.9</scale>'
+    '<IconStyle><scale>0.45</scale>'
     '<Icon><href>http://maps.google.com/mapfiles/kml/pushpin/blue-pushpin.png</href></Icon>'
     '<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/></IconStyle>'
     '<LabelStyle><color>ffffffff</color><scale>1</scale></LabelStyle>'
