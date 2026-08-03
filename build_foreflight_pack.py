@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the ForeFlight content pack 'THC-SFLA.zip' from the SFLA master KMZ + THC waypoints.
+"""Build the ForeFlight content pack 'THC-Part-135.zip' from the SFLA master KMZ + THC waypoints.
 
 ForeFlight content-pack layout (per foreflight.com/support/content-packs):
   THC SFLA/
@@ -8,7 +8,7 @@ ForeFlight content-pack layout (per foreflight.com/support/content-packs):
     navdata/  THC Waypoints.kml, NAJD VRPs.kml   <- user waypoints (Point placemarks)
 
 Hosted on GitHub Pages; pilots import via:
-  https://foreflight.com/content?downloadURL=https://willslawrence.github.io/SFLA/THC-SFLA.zip
+  https://foreflight.com/content?downloadURL=https://willslawrence.github.io/SFLA/THC-Part-135.zip
 
 Re-run whenever the SFLA master KMZ (or waypoint sources) change, then commit + push.
 The repo's THC_SFLA_master.kmz is the source of the area layer (kept current by the
@@ -19,7 +19,7 @@ import os, time, json, zipfile, shutil, tempfile, re
 HERE = os.path.dirname(os.path.abspath(__file__))
 MASTER_KMZ = os.path.join(HERE, "THC_SFLA_master.kmz")
 SOURCES = os.path.join(HERE, "sources")          # waypoint KMZ sources (committed)
-OUT_ZIP = os.path.join(HERE, "THC-SFLA.zip")
+OUT_ZIP = os.path.join(HERE, "THC-Part-135.zip")
 PACK_NAME = "THC Part 135"
 
 # UAM routes layer — built from the SAME source the Riyadh UAM Route Map uses
