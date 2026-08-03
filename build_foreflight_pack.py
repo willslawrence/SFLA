@@ -43,9 +43,9 @@ def kml_from_kmz(path):
 
 
 # VRP label style — mirrors the NAJD VRPs' #style1 (white LabelStyle) so ForeFlight
-# draws the name on the map instead of decluttering it. Category-VRP points only.
-_VRP_STYLE = (
-    '<Style id="thc_vrp">'
+# draws the name on the map instead of decluttering it. Applied to EVERY waypoint.
+_WPT_STYLE = (
+    '<Style id="thc_wpt">'
     '<IconStyle><scale>0.9</scale>'
     '<Icon><href>http://maps.google.com/mapfiles/kml/pushpin/blue-pushpin.png</href></Icon>'
     '<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/></IconStyle>'
@@ -68,30 +68,36 @@ def _vrp_code(name, area):
     return ' '.join(toks).strip() or name
 
 
-def style_vrp_labels(kml):
-    """Inject the VRP LabelStyle and rewrite category-VRP placemarks to a short,
-    on-map code label (keeping the full name in the description).  De-dupes codes
-    that collide across areas (e.g. EAST GATE) by re-appending the area.
-    Returns (new_kml, [(full_name, code, area), ...])."""
-    kml = kml.replace('<Document>', '<Document>\n' + _VRP_STYLE, 1)
+def style_waypoint_labels(kml):
+    """Inject a LabelStyle on EVERY waypoint placemark so ForeFlight draws the name
+    on the map (not just category-VRP points).  VRP placemarks are additionally
+    shortened to their on-map code (full name kept in the description; codes that
+    collide across areas are de-duped by re-appending the area); all other
+    waypoints keep their full name as the label.
+    Returns (new_kml, [(full_name, code, area), ...]) for the VRPs that were shortened."""
+    kml = kml.replace('<Document>', '<Document>\n' + _WPT_STYLE, 1)
 
-    infos = []           # one entry per placemark, aligned to _PM_RE order; None = not a VRP
+    infos = []           # one entry per placemark, aligned to _PM_RE order; None = no <name>
     for m in _PM_RE.finditer(kml):
         body = m.group(1)
         dm, nm = _DESC_RE.search(body), _NAME_RE.search(body)
-        if not (dm and nm) or not dm.group(1).strip().endswith('- VRP'):
+        if not nm:
             infos.append(None)
             continue
-        area = dm.group(1).strip()[:-len('- VRP')].rstrip('- ').strip()
-        name = nm.group(1).strip()
-        infos.append({'area': area, 'name': name, 'code': _vrp_code(name, area)})
+        desc = dm.group(1).strip() if dm else ''
+        if desc.endswith('- VRP'):
+            area = desc[:-len('- VRP')].rstrip('- ').strip()
+            name = nm.group(1).strip()
+            infos.append({'vrp': True, 'area': area, 'name': name, 'code': _vrp_code(name, area)})
+        else:
+            infos.append({'vrp': False})     # non-VRP: label it, but keep its full name
 
     counts = {}
     for i in infos:
-        if i:
+        if i and i.get('vrp'):
             counts[i['code']] = counts.get(i['code'], 0) + 1
     for i in infos:
-        if i and counts[i['code']] > 1:                 # collision -> disambiguate by area
+        if i and i.get('vrp') and counts[i['code']] > 1:   # collision -> disambiguate by area
             i['code'] = (i['code'] + ' ' + i['area']).strip()
 
     seq = iter(infos)
@@ -100,15 +106,17 @@ def style_vrp_labels(kml):
         info = next(seq)
         if not info:
             return m.group(0)
-        body = _NAME_RE.sub('<name>%s</name>' % info['code'], m.group(1), count=1)
-        body = _DESC_RE.sub('<description>%s (%s)</description>' % (info['name'], info['area']),
-                            body, count=1)
+        body = m.group(1)
+        if info.get('vrp'):                              # VRP: swap name -> code, stash full name
+            body = _NAME_RE.sub('<name>%s</name>' % info['code'], body, count=1)
+            body = _DESC_RE.sub('<description>%s (%s)</description>' % (info['name'], info['area']),
+                                body, count=1)
         if '<styleUrl>' not in body:
-            body = body.replace('<Point>', '<styleUrl>#thc_vrp</styleUrl><Point>', 1)
+            body = body.replace('<Point>', '<styleUrl>#thc_wpt</styleUrl><Point>', 1)
         return '<Placemark>%s</Placemark>' % body
 
     kml = _PM_RE.sub(repl, kml)
-    mapping = [(i['name'], i['code'], i['area']) for i in infos if i]
+    mapping = [(i['name'], i['code'], i['area']) for i in infos if i and i.get('vrp')]
     return kml, mapping
 
 
@@ -193,8 +201,9 @@ def build():
             continue
         kml = kml_from_kmz(src)
         if out_name == "THC Waypoints.kml":
-            kml, mapping = style_vrp_labels(kml)
-            print(f"  labeled {len(mapping)} VRPs (code = on-map label):")
+            kml, mapping = style_waypoint_labels(kml)
+            total = kml.count('styleUrl>#thc_wpt')
+            print(f"  labeled {total} waypoints ({len(mapping)} VRPs shortened to codes):")
             for name, code, area in mapping:
                 flag = "  <-- disambiguated" if code.endswith(area) and code != name else ""
                 print(f"    {name:<32} -> {code}{flag}")
