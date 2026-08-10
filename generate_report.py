@@ -40,8 +40,19 @@ def _worker_get(url):
     return json.loads(urllib.request.urlopen(req, timeout=30).read())
 
 def worker_sites():
-    """{name: {status,lastChecked,checkCount,notes,areas}} — live, from the Worker."""
-    return _worker_get(WORKER).get('sites', {})
+    """{name: {status,lastChecked,checkCount,notes,areas}} — live status from the Worker,
+    area membership from geometry.json.
+
+    Status is live; area tags are not. geometry.json is authoritative for tags (same
+    rule as build.py), so a pad re-tagged in the repo reaches the GACA report without
+    a matching setAreas call against Airtable. Reading tags from the Worker meant the
+    report could file a pad under the wrong corridor."""
+    sites = _worker_get(WORKER).get('sites', {})
+    geom = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'geometry.json')))
+    for name, info in sites.items():
+        if name in geom:
+            info['areas'] = geom[name]['areas']
+    return sites
 
 def worker_changelog(s, e):
     """Status-change log between s and e (datetimes), from the Worker."""

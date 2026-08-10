@@ -39,10 +39,12 @@ for name, g in geom.items():
         "type": "Feature",
         "properties": {
             "name": name,
-            # geometry.json is authoritative for area tags: they are survey metadata,
-            # version-controlled, and nothing in the pilot-facing UI can change them
-            # (the Worker only writes Status/Notes/LastChecked/CheckCount). Airtable
-            # used to win here, which silently ignored any edit made in the repo.
+            # geometry.json is authoritative for area tags — survey metadata, version
+            # controlled, reviewable in a diff. Airtable used to win here, which made
+            # any tag edit in the repo a silent no-op.
+            # The Worker's PIN-gated setAreas action can still write tags to Airtable
+            # (it re-tagged 21 pads on 2026-07-06), so the two CAN diverge. That is now
+            # reported loudly below rather than silently resolved either way.
             "areas": g["areas"],
             "status": st.get("status", "New SFLA"),
             "lastChecked": st.get("lastChecked"),
@@ -51,6 +53,19 @@ for name, g in geom.items():
         },
         "geometry": {"type": "Polygon", "coordinates": [ring]},
     })
+# Area tags live in geometry.json, but the Worker's setAreas action writes them to
+# Airtable too. Say so when they disagree — whichever side is stale, staying quiet
+# about it is how the map drifts from the database.
+drift = [(n, sorted(g["areas"]), sorted(status_by[n]["areas"]))
+         for n, g in geom.items()
+         if status_by.get(n, {}).get("areas")
+         and sorted(status_by[n]["areas"]) != sorted(g["areas"])]
+if drift:
+    print(f"WARNING: area tags differ from Airtable on {len(drift)} pad(s) — "
+          f"geometry.json wins; reconcile or re-run setAreas:")
+    for name, mine, theirs in drift:
+        print(f"  {name}: geometry.json {mine}  vs  Airtable {theirs}")
+
 out = {"type": "FeatureCollection", "generated": True, "features": feats}
 json.dump(out, open(os.path.join(HERE, "data.geojson"), "w"))
 print(f"data.geojson written: {len(feats)} features ({len(status_by)} had live status)")
