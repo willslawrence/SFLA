@@ -712,25 +712,34 @@
     // Load baked status (no token) from data.geojson
     async function loadSiteData() {
       try {
+        // Both fetches start together. They were sequential, and the Worker GET pages
+        // through every record in Airtable — measured ~3.7 s on its own — so the map
+        // used to sit blank for the baked read PLUS the live read, back to back.
+        const livePromise = WORKER_URL
+          ? fetch(WORKER_URL).then(r => r.json()).catch(e => { console.warn('Live status unavailable, using baked snapshot:', e); return null; })
+          : Promise.resolve(null);
+
         const gj = await (await fetch('data.geojson')).json();
         (gj.features || []).forEach(f => {
           const p = f.properties;
           siteData[p.name] = { fields: { 'SFLA Name': p.name, Status: p.status, LastChecked: p.lastChecked, CheckCount: p.checkCount, Notes: p.notes } };
         });
-        // Overlay LIVE status from the Worker so taps persist across reloads (falls back to baked snapshot).
-        if (WORKER_URL) {
-          try {
-            const live = await (await fetch(WORKER_URL)).json();
-            if (live && live.sites) {
-              Object.entries(live.sites).forEach(([name, s]) => {
-                siteData[name] = { fields: { 'SFLA Name': name, Status: s.status, LastChecked: s.lastChecked, CheckCount: s.checkCount, Notes: s.notes } };
-              });
-            }
-          } catch (e) { console.warn('Live status unavailable, using baked snapshot:', e); }
-        }
+
+        // Draw immediately off the baked snapshot rather than holding the map back for
+        // the live read. data.geojson is rebuilt on every push, so it is usually correct
+        // already; the live overlay just corrects taps made since the last build.
         renderRoutes();
         renderGPSPoints();
         renderShapes();
+
+        // Overlay LIVE status from the Worker so taps persist across reloads.
+        const live = await livePromise;
+        if (live && live.sites) {
+          Object.entries(live.sites).forEach(([name, s]) => {
+            siteData[name] = { fields: { 'SFLA Name': name, Status: s.status, LastChecked: s.lastChecked, CheckCount: s.checkCount, Notes: s.notes } };
+            updateShapeColor(name, s.status, s.lastChecked);
+          });
+        }
       } catch (err) {
         console.error('Failed to load:', err);
       }
@@ -911,34 +920,77 @@
       }
     });
     
-    // Save status via the PIN-gated Cloudflare Worker (server-side token)
+    // Non-blocking status line. alert() is a modal dialog that has to be dismissed —
+    // the wrong thing to put in front of a single pilot who has already looked away.
+    let toastTimer = null;
+    function toast(msg, kind) {
+      let el = document.getElementById('sflaToast');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'sflaToast';
+        el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:1200;' +
+          'padding:11px 16px;border-radius:10px;font-size:14px;font-weight:600;color:#fff;' +
+          'box-shadow:0 3px 14px rgba(0,0,0,.28);max-width:90vw;text-align:center;pointer-events:none';
+        document.body.appendChild(el);
+      }
+      el.textContent = msg;
+      el.style.background = kind === 'error' ? '#c62828' : (kind === 'warn' ? '#e8730c' : '#2e9e4f');
+      el.style.display = 'block';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.style.display = 'none'; }, kind === 'error' ? 6000 : 2600);
+    }
+
+    // Save status via the PIN-gated Cloudflare Worker (server-side token).
+    //
+    // OPTIMISTIC: the pad recolours and the panel closes on the tap, before the write
+    // lands. Single-pilot with attention divided, a pad that stays unchanged for the
+    // length of a round-trip reads as "the tap didn't register" and gets tapped again.
+    // The write still has to succeed — if it fails the pad reverts to exactly what it
+    // was and says so, so the map never quietly claims a check that was never recorded.
     async function saveStatus(status) {
       if (!selectedShape) return;
       const name = selectedShape.name;
       const notes = document.getElementById('panelNotes').value || '';
       const today = new Date().toISOString().split('T')[0];
-      if (!WORKER_URL) { alert('Live update not configured yet.'); return; }
+      if (!WORKER_URL) { toast('Live update not configured yet.', 'error'); return; }
       const pin = getPin(); if (!pin) return;
-      radialSuitable.disabled = true;
-      radialUnsuitable.disabled = true;
-      try {
-        const resp = await fetch(WORKER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, status, notes, pin })
-        });
-        if (resp.status === 401) { localStorage.removeItem('sflaPin'); throw new Error('Wrong PIN — it is the company iPad passcode. Tap the pad again to retry.'); }
-        if (!resp.ok) throw new Error('Save failed (' + resp.status + ')');
-        siteData[name] = { fields: { 'SFLA Name': name, Status: status, LastChecked: today, Notes: notes,
-          CheckCount: (siteData[name]?.fields?.CheckCount || 0) + 1 } };
-        updateShapeColor(name, status, today);
-        closePanel();
-      } catch (err) {
-        console.error('Save error:', err);
-        alert('Failed to save: ' + err.message);
-      } finally {
-        radialSuitable.disabled = false;
-        radialUnsuitable.disabled = false;
+
+      const prev = siteData[name] ? JSON.parse(JSON.stringify(siteData[name])) : null;
+
+      // paint first
+      siteData[name] = { fields: { 'SFLA Name': name, Status: status, LastChecked: today, Notes: notes,
+        CheckCount: (siteData[name]?.fields?.CheckCount || 0) + 1 } };
+      updateShapeColor(name, status, today);
+      closePanel();
+
+      const revert = (msg) => {
+        if (prev) siteData[name] = prev; else delete siteData[name];
+        updateShapeColor(name, prev?.fields?.Status || 'New SFLA', prev?.fields?.LastChecked);
+        toast(msg, 'error');
+      };
+
+      // one silent retry — a dropped packet on a marginal link is the common case and
+      // is not worth showing the pilot, provided the second attempt lands.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const resp = await fetch(WORKER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, status, notes, pin })
+          });
+          if (resp.status === 401) {
+            localStorage.removeItem('sflaPin');
+            revert(name + ' NOT saved — wrong PIN. Tap the pad again.');
+            return;
+          }
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          toast(name + ' saved — ' + status, 'ok');
+          return;
+        } catch (err) {
+          console.error('Save error (attempt ' + (attempt + 1) + '):', err);
+          if (attempt === 0) { await new Promise(r => setTimeout(r, 1200)); continue; }
+          revert(name + ' NOT saved — no connection. Tap it again when you have signal.');
+        }
       }
     }
     

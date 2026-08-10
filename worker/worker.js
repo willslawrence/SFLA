@@ -40,7 +40,7 @@ async function airtableAll(BASE, table, H, query = "") {
 }
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
 
     const BASE = env.BASE_ID, TABLE = env.TABLE, KEY = env.AIRTABLE_TOKEN;
@@ -189,15 +189,17 @@ export default {
     });
     if (!upd.ok) return json({ error: "update failed", detail: await upd.text() }, 502);
 
-    // append to Change Log ONLY when the status actually changed (not a routine re-check)
+    // Append to Change Log ONLY when the status actually changed (not a routine re-check).
+    // Off the response path via ctx.waitUntil: the pad's own record is already PATCHed by
+    // here, so the pilot's answer does not need to wait on a second Airtable round-trip.
+    // waitUntil keeps the Worker alive until it finishes, so nothing is dropped.
     if (prev !== status) {
-      try {
-        await fetch(`https://api.airtable.com/v0/${BASE}/${encodeURIComponent("Change Log")}`, {
-          method: "POST", headers: H,
-          body: JSON.stringify({ fields: { Name: name, Timestamp: new Date().toISOString(),
-            PreviousStatus: prev || "Pending", NewStatus: status, Notes: notes || "" } }),
-        });
-      } catch (_) {}
+      const logWrite = fetch(`https://api.airtable.com/v0/${BASE}/${encodeURIComponent("Change Log")}`, {
+        method: "POST", headers: H,
+        body: JSON.stringify({ fields: { Name: name, Timestamp: new Date().toISOString(),
+          PreviousStatus: prev || "Pending", NewStatus: status, Notes: notes || "" } }),
+      }).catch(() => {});
+      if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(logWrite); else await logWrite;
     }
 
     return json({ ok: true, name, status, lastChecked: today, checkCount: cc });

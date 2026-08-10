@@ -37,6 +37,8 @@
   .ffsteps{margin:0 0 14px;padding-left:20px}
   .ffsteps li{font-size:14px;line-height:1.55;margin:7px 0}
   .ffsteps b{color:var(--navy)}
+  .ffalready{background:#fdf3f3;border:1px solid #e6c9c9;border-left:4px solid var(--red);border-radius:10px;padding:11px 13px;margin:0 0 16px;font-size:13.5px;line-height:1.55;color:var(--ink)}
+  .ffalready b{color:var(--red)}
   .ffupd{background:#f6f7f9;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.5;color:var(--ink)}
   .ffupd b{color:var(--navy)}
   .ffkmz{display:inline-block;margin-top:14px;color:var(--muted);font-size:12.5px;text-decoration:underline}
@@ -118,6 +120,7 @@ function renderLanding(cfg,data,isLive){
      <div class="ffpanel">
        <div class="ffhd">✈️ ForeFlight — THC content pack</div>
        <div class="ffsub">One import loads it all into ForeFlight: the <b>SFLA areas</b>, the <b>UAM routes</b> (green = approved · red = not approved), and all <b>waypoints / VRPs</b>.</div>
+       <div class="ffalready"><b>Already have the pack? Delete it first.</b> Tapping the button below will <b>not</b> update it. Go to <b>More → Custom Content</b>, delete <b>THC Part 135</b>, then import again below.</div>
        <a class="ffbtn" href="https://foreflight.com/content?downloadURL=https://willslawrence.github.io/SFLA/THC-Part-135.zip">Import into ForeFlight</a>
        <div class="ffnote">Open this page on the iPad that has ForeFlight installed, then tap the button.</div>
        <ol class="ffsteps">
