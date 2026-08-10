@@ -1,0 +1,209 @@
+/**
+ * THC SFLA — read/write proxy (Cloudflare Worker)
+ * Holds the Airtable token server-side. Pilots' Suitable/Unsuitable taps POST here;
+ * the public map + the monthly report read via GET (no token in any client).
+ * Gated by a shared PIN for writes only — reads are open (statuses aren't sensitive).
+ *
+ * Set as Worker secrets/vars (Settings → Variables):
+ *   AIRTABLE_TOKEN  = pat...        (Airtable PAT, data.records:read + write on the base)
+ *   WRITE_PIN       = <shared PIN>  (give this to pilots)
+ *   BASE_ID         = appBJW3FvPw5c659F
+ *   TABLE           = SFLA Sites v2
+ *
+ * Endpoints:
+ *   GET  /                       -> { ok, sites: { <name>: {status,lastChecked,checkCount,notes,areas} } }
+ *   GET  /?log=1&from=ISO&to=ISO -> { ok, changeLog: [ {name,timestamp,prev,new,notes} ] }
+ *   POST /  {name,status,notes,pin}                       -> toggle a pad Suitable/Unsuitable
+ *   POST /  {action:"create", pin, records:[{name,areas,status,notes,extraFields}]}
+ *                                -> bulk-create new SFLA rows (idempotent: skips names already present)
+ *   POST /  {action:"setAreas", pin, records:[{name,areas:[...]}]}
+ *                                -> bulk-replace the Areas multi-select on existing pads
+ */
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+// fetch every record from an Airtable table (handles pagination), optional query string
+async function airtableAll(BASE, table, H, query = "") {
+  const out = [];
+  let url = `https://api.airtable.com/v0/${BASE}/${encodeURIComponent(table)}?pageSize=100${query}`;
+  while (url) {
+    const d = await (await fetch(url, { headers: H })).json();
+    out.push(...(d.records || []));
+    url = d.offset
+      ? `https://api.airtable.com/v0/${BASE}/${encodeURIComponent(table)}?pageSize=100${query}&offset=${d.offset}`
+      : null;
+  }
+  return out;
+}
+
+export default {
+  async fetch(req, env) {
+    if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
+
+    const BASE = env.BASE_ID, TABLE = env.TABLE, KEY = env.AIRTABLE_TOKEN;
+    const H = { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
+
+    // ---- READ (public) ----
+    if (req.method === "GET") {
+      const url = new URL(req.url);
+
+      // change-log endpoint for the monthly report: ?log=1&from=ISO&to=ISO
+      if (url.searchParams.get("log")) {
+        const from = url.searchParams.get("from"), to = url.searchParams.get("to");
+        let q = "";
+        if (from && to) {
+          const f = `AND(IS_AFTER(Timestamp,'${from}'),IS_BEFORE(Timestamp,'${to}'))`;
+          q = `&filterByFormula=${encodeURIComponent(f)}`;
+        }
+        const recs = [
+          ...(await airtableAll(BASE, "Change Log", H, q)),
+          ...(await airtableAll(BASE, "All Change Log", H, q)),
+        ];
+        const changeLog = recs.map((r) => {
+          const f = r.fields || {};
+          return {
+            name: f.Name || "",
+            timestamp: f.Timestamp || "",
+            prev: f.PreviousStatus || "",
+            new: f.NewStatus || "",
+            notes: f.Notes || "",
+          };
+        });
+        return json({ ok: true, changeLog });
+      }
+
+      // default: current status for every SFLA (map + report)
+      const recs = await airtableAll(BASE, TABLE, H);
+      const sites = {};
+      for (const r of recs) {
+        const f = r.fields || {};
+        const n = f["SFLA Name"];
+        if (!n) continue;
+        sites[n] = {
+          status: f.Status || "New SFLA",
+          lastChecked: f.LastChecked || null,
+          checkCount: f.CheckCount || 0,
+          notes: f.Notes || "",
+          areas: f.Areas || [],
+        };
+      }
+      return json({ ok: true, sites });
+    }
+
+    // ---- WRITE (PIN-gated) ----
+    if (req.method !== "POST") return json({ error: "GET or POST only" }, 405);
+
+    let body;
+    try { body = await req.json(); } catch { return json({ error: "bad json" }, 400); }
+    if (!body || !body.pin || body.pin !== env.WRITE_PIN) return json({ error: "bad pin" }, 401);
+
+    const TABLE_ENC = encodeURIComponent(TABLE);
+
+    // ---- CREATE new SFLA rows (bulk, idempotent by SFLA Name) ----
+    if (body.action === "create") {
+      const records = Array.isArray(body.records) ? body.records : [];
+      if (!records.length) return json({ error: "no records" }, 400);
+
+      // names already in the table — never duplicate an existing pad
+      const existing = new Set(
+        (await airtableAll(BASE, TABLE, H)).map((r) => (r.fields || {})["SFLA Name"]).filter(Boolean)
+      );
+
+      const created = [], skipped = [], failed = [], toCreate = [];
+      for (const rec of records) {
+        const name = rec && rec.name;
+        if (!name) { failed.push({ name: null, error: "missing name" }); continue; }
+        if (existing.has(name)) { skipped.push(name); continue; }
+        const fields = { "SFLA Name": name, Status: rec.status || "New SFLA", CheckCount: 0 };
+        if (Array.isArray(rec.areas) && rec.areas.length) fields.Areas = rec.areas;
+        if (rec.notes) fields.Notes = rec.notes;
+        if (rec.extraFields && typeof rec.extraFields === "object") Object.assign(fields, rec.extraFields);
+        toCreate.push({ fields });
+        existing.add(name); // guard against dupes inside this same batch
+      }
+
+      // Airtable caps creates at 10 records/request
+      for (let i = 0; i < toCreate.length; i += 10) {
+        const chunk = toCreate.slice(i, i + 10);
+        const resp = await fetch(`https://api.airtable.com/v0/${BASE}/${TABLE_ENC}`, {
+          method: "POST", headers: H,
+          body: JSON.stringify({ records: chunk, typecast: true }),
+        });
+        if (!resp.ok) { failed.push({ batch: i / 10, error: await resp.text() }); continue; }
+        const d = await resp.json();
+        for (const r of (d.records || [])) created.push((r.fields || {})["SFLA Name"]);
+      }
+      return json({ ok: failed.length === 0, created, skipped, failed });
+    }
+
+    // ---- SET AREAS on existing pads (bulk multi-select replace) ----
+    if (body.action === "setAreas") {
+      const records = Array.isArray(body.records) ? body.records : [];
+      if (!records.length) return json({ error: "no records" }, 400);
+
+      const byName = {};
+      for (const r of await airtableAll(BASE, TABLE, H)) {
+        const n = (r.fields || {})["SFLA Name"];
+        if (n) byName[n] = r.id;
+      }
+      const updated = [], notfound = [], failed = [];
+      for (const rec of records) {
+        const name = rec && rec.name, areas = rec && rec.areas;
+        if (!name || !Array.isArray(areas)) { failed.push({ name: name || null, error: "bad record" }); continue; }
+        const id = byName[name];
+        if (!id) { notfound.push(name); continue; }
+        const resp = await fetch(`https://api.airtable.com/v0/${BASE}/${TABLE_ENC}/${id}`, {
+          method: "PATCH", headers: H,
+          body: JSON.stringify({ fields: { Areas: areas }, typecast: true }),
+        });
+        if (!resp.ok) { failed.push({ name, error: await resp.text() }); continue; }
+        updated.push(name);
+      }
+      return json({ ok: failed.length === 0, updated, notfound, failed });
+    }
+
+    // ---- STATUS toggle (pilot tap: Suitable / Unsuitable) ----
+    const { name, status, notes } = body || {};
+    if (!name || !["Suitable", "Unsuitable"].includes(status)) return json({ error: "bad input" }, 400);
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // find the record by SFLA Name
+    const q = encodeURIComponent(`{SFLA Name}="${name.replace(/"/g, '\\"')}"`);
+    const found = await (await fetch(
+      `https://api.airtable.com/v0/${BASE}/${TABLE_ENC}?filterByFormula=${q}&maxRecords=1`, { headers: H }
+    )).json();
+    const rec = (found.records || [])[0];
+    if (!rec) return json({ error: "not found" }, 404);
+
+    const prev = rec.fields.Status || "";
+    const cc = (rec.fields.CheckCount || 0) + 1;
+
+    // update the SFLA record
+    const upd = await fetch(`https://api.airtable.com/v0/${BASE}/${TABLE_ENC}/${rec.id}`, {
+      method: "PATCH", headers: H,
+      body: JSON.stringify({ fields: { Status: status, Notes: notes || "", LastChecked: today, CheckCount: cc } }),
+    });
+    if (!upd.ok) return json({ error: "update failed", detail: await upd.text() }, 502);
+
+    // append to Change Log ONLY when the status actually changed (not a routine re-check)
+    if (prev !== status) {
+      try {
+        await fetch(`https://api.airtable.com/v0/${BASE}/${encodeURIComponent("Change Log")}`, {
+          method: "POST", headers: H,
+          body: JSON.stringify({ fields: { Name: name, Timestamp: new Date().toISOString(),
+            PreviousStatus: prev || "Pending", NewStatus: status, Notes: notes || "" } }),
+        });
+      } catch (_) {}
+    }
+
+    return json({ ok: true, name, status, lastChecked: today, checkCount: cc });
+  },
+};
+
+function json(obj, code = 200) {
+  return new Response(JSON.stringify(obj), { status: code, headers: { ...CORS, "Content-Type": "application/json" } });
+}

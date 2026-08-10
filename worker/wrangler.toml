@@ -1,0 +1,7 @@
+name = "sfla-write"
+main = "worker.js"
+compatibility_date = "2026-06-01"
+
+[vars]
+BASE_ID = "appBJW3FvPw5c659F"
+TABLE = "SFLA Sites v2"
