@@ -1,4 +1,14 @@
 /**
+ * ⚠️ SUPERSEDED — DO NOT DEPLOY THIS FILE.
+ *
+ * The deployed Worker lives in ~/Connected/Cowork/Projects/sfla-write-worker/worker.js
+ * and is roughly twice this size. This copy is a June snapshot, kept only for history.
+ * Deploying it would silently drop:
+ *   - the "create" action      (bulk row insert — used by import_kmz.py --airtable)
+ *   - the "setAreas" action    (bulk area re-tag)
+ *   - the change-log endpoint  (?log=1 — the monthly GACA report reads it)
+ *   - "areas" on the GET       (map.html's live overlay and generate_report.py need it)
+ *
  * THC SFLA — write proxy (Cloudflare Worker)
  * Holds the Airtable token server-side. Pilots' Suitable/Unsuitable taps POST here.
  * Gated by a shared PIN so only THC pilots can write.
