@@ -953,7 +953,7 @@
       const notes = document.getElementById('panelNotes').value || '';
       const today = new Date().toISOString().split('T')[0];
       if (!WORKER_URL) { toast('Live update not configured yet.', 'error'); return; }
-      const pin = getPin(); if (!pin) return;
+      const storedPin = getPin(); if (!storedPin) return;
 
       const prev = siteData[name] ? JSON.parse(JSON.stringify(siteData[name])) : null;
 
@@ -969,8 +969,17 @@
         toast(msg, 'error');
       };
 
-      // one silent retry — a dropped packet on a marginal link is the common case and
+      // One silent retry — a dropped packet on a marginal link is the common case and
       // is not worth showing the pilot, provided the second attempt lands.
+      //
+      // A 401 means the STORED pin is wrong, so it does have to be re-entered — but the
+      // pilot should not also lose the tap. Ask once, retry the same write with the new
+      // pin, and keep the pad green if it lands. Only a second 401 gives up, and only
+      // then is the bad pin cleared: binning it on the first 401 and saying "tap it
+      // again" made one mistyped digit cost a re-entry AND a re-tap.
+      let pin = storedPin;
+      let askedForPin = false;
+
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const resp = await fetch(WORKER_URL, {
@@ -978,11 +987,27 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, status, notes, pin })
           });
+
           if (resp.status === 401) {
-            localStorage.removeItem('sflaPin');
-            revert(name + ' NOT saved — wrong PIN. Tap the pad again.');
-            return;
+            if (askedForPin) {                       // already had a second go — stop asking
+              localStorage.removeItem('sflaPin');
+              revert(name + ' NOT saved — that PIN was not accepted. Ask ops for the current PIN.');
+              return;
+            }
+            askedForPin = true;
+            const retyped = prompt('That PIN was not accepted. Re-enter the THC SFLA update PIN — '
+                                 + 'this is the same as the company iPad passcode:');
+            if (!retyped) {
+              localStorage.removeItem('sflaPin');
+              revert(name + ' NOT saved — PIN needed. Tap the pad again when you have it.');
+              return;
+            }
+            pin = retyped;
+            localStorage.setItem('sflaPin', retyped); // corrected now, so later taps just work
+            attempt = -1;                             // fresh pair of attempts on the new pin
+            continue;
           }
+
           if (!resp.ok) throw new Error('HTTP ' + resp.status);
           toast(name + ' saved — ' + status, 'ok');
           return;
