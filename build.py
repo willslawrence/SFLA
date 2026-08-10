@@ -18,12 +18,21 @@ status_by = resp.get("sites", {})
 
 geom = json.load(open(os.path.join(HERE, "geometry.json")))
 feats = []
+shapes = []
 for name, g in geom.items():
     if g.get("retired"):        # retired-Unsuitable: kept in geometry.json + master KMZ as
         continue                # survey memory, but never rendered on the public map
     st = status_by.get(name, {})
     ring = g["ring"][:]
     if ring[0] != ring[-1]: ring.append(ring[0])
+    # map.html draws from SHAPES in shapes.js (Leaflet order: lat,lon).
+    # geometry.json rings are GeoJSON order (lon,lat) — flip them.
+    shapes.append({
+        "name": name,
+        "coords": [[pt[1], pt[0]] for pt in ring],
+        "center": [g["lat"], g["lon"]],
+        "areas": st.get("areas") or g["areas"],
+    })
     feats.append({
         "type": "Feature",
         "properties": {
@@ -39,3 +48,13 @@ for name, g in geom.items():
 out = {"type": "FeatureCollection", "generated": True, "features": feats}
 json.dump(out, open(os.path.join(HERE, "data.geojson"), "w"))
 print(f"data.geojson written: {len(feats)} features ({len(status_by)} had live status)")
+
+# shapes.js — line 1 is SHAPES (regenerated here); ROUTES and GPS_POINTS on the
+# following lines are hand-maintained and passed through untouched.
+SHAPES_PATH = os.path.join(HERE, "shapes.js")
+lines = open(SHAPES_PATH).read().split("\n")
+if not lines[0].startswith("const SHAPES"):
+    raise SystemExit("shapes.js: line 1 is not 'const SHAPES' — refusing to rewrite it")
+lines[0] = "const SHAPES = " + json.dumps(shapes) + ";"
+open(SHAPES_PATH, "w").write("\n".join(lines))
+print(f"shapes.js written: {len(shapes)} SHAPES (ROUTES/GPS_POINTS preserved)")
