@@ -20,8 +20,10 @@ geom = json.load(open(os.path.join(HERE, "geometry.json")))
 feats = []
 shapes = []
 for name, g in geom.items():
-    if g.get("retired"):        # retired-Unsuitable: kept in geometry.json + master KMZ as
-        continue                # survey memory, but never rendered on the public map
+    # Retired-Unsuitable pads STAY on the map (grey). They used to be filtered out
+    # here, which meant an accidental Unsuitable tap made a pad silently disappear
+    # with no way to spot or undo it. Will reviews them by hand every few months;
+    # the flag still drives the master KMZ's "do not re-survey" folder.
     st = status_by.get(name, {})
     ring = g["ring"][:]
     if ring[0] != ring[-1]: ring.append(ring[0])

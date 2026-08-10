@@ -99,6 +99,9 @@ function renderLanding(cfg,data,isLive){
     const pads=data.features.filter(f=>f.properties.areas.includes(a.tag));
     const need=pads.filter(f=>{
       const p=f.properties;
+      // Unsuitable pads render (grey) so an accidental tap is visible and revertible,
+      // but they are not a recheck task — Will reviews them by hand periodically.
+      if(p.status==="Unsuitable") return false;
       if(p.status==="New SFLA"||p.status==="Pending Recheck") return true;
       if(!p.lastChecked) return true;
       return Math.floor((Date.now()-Date.parse(p.lastChecked))/86400000)>28;
