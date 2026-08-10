@@ -33,13 +33,17 @@ for name, g in geom.items():
         "name": name,
         "coords": [[pt[1], pt[0]] for pt in ring],
         "center": [g["lat"], g["lon"]],
-        "areas": st.get("areas") or g["areas"],
+        "areas": g["areas"],
     })
     feats.append({
         "type": "Feature",
         "properties": {
             "name": name,
-            "areas": st.get("areas") or g["areas"],
+            # geometry.json is authoritative for area tags: they are survey metadata,
+            # version-controlled, and nothing in the pilot-facing UI can change them
+            # (the Worker only writes Status/Notes/LastChecked/CheckCount). Airtable
+            # used to win here, which silently ignored any edit made in the repo.
+            "areas": g["areas"],
             "status": st.get("status", "New SFLA"),
             "lastChecked": st.get("lastChecked"),
             "checkCount": st.get("checkCount", 0),

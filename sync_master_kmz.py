@@ -45,11 +45,19 @@ mr = re.search(r"<Folder><name>Restricted Areas</name>.*?</Folder>", old, re.S)
 restricted = mr.group(0) if mr else ""
 
 # --- area folders from data.geojson (live area membership) ---
+# Unsuitable pads are deliberately NOT in the area folders. data.geojson carries them
+# so the web tracker can draw them grey (an accidental Unsuitable tap has to stay
+# visible and revertible), but ForeFlight styles a polygon by its area folder, not by
+# status — an unsuitable pad in an area folder reads to a pilot as a usable landing
+# option. Retired ones keep their own hidden "do not re-survey" folder below.
 data = json.load(open(os.path.join(HERE, "data.geojson")))
-folders, area_counts = [], {}
+folders, area_counts, suppressed = [], {}, set()
 for area in AREA_ORDER:
     pms = []
     for f in data["features"]:
+        if f["properties"].get("status") == "Unsuitable":
+            suppressed.add(f["properties"]["name"])
+            continue
         if area in (f["properties"].get("areas") or []):
             ring = [(x, y) for x, y in f["geometry"]["coordinates"][0]]
             pms.append(placemark(f["properties"]["name"], AREA_STYLE[area], ring))
@@ -74,4 +82,6 @@ with zipfile.ZipFile(KMZ, "w", zipfile.ZIP_DEFLATED) as zf:
 
 print(f"master KMZ rebuilt: {doc.count('<Placemark>')} placemarks "
       f"(areas {area_counts}, restricted {restricted.count('<Placemark>')}, retired {len(rpms)})")
+print(f"  {len(suppressed)} Unsuitable pads kept out of the area folders "
+      f"({len(suppressed - set(k for k, v in ret))} of them not yet flagged retired)")
 subprocess.run(["python3", os.path.join(HERE, "build_foreflight_pack.py")], check=True)
