@@ -12,7 +12,8 @@
      46.14302286
     ]
    ],
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "L01 ↔ D01 Extension (proposed)",
@@ -26,7 +27,8 @@
      46.468056
     ]
    ],
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "Boutique Ext 3",
@@ -45,7 +47,8 @@
     ]
    ],
    "cat": "city",
-   "dash": true
+   "dash": true,
+   "region": "riyadh"
   },
   {
    "n": "City Tour",
@@ -88,7 +91,8 @@
     ]
    ],
    "cat": "city",
-   "dash": true
+   "dash": true,
+   "region": "riyadh"
   },
   {
    "n": "EotW Tour",
@@ -115,7 +119,8 @@
     ]
    ],
    "cat": "city",
-   "dash": true
+   "dash": true,
+   "region": "riyadh"
   },
   {
    "n": "Tour Ext 1",
@@ -134,7 +139,8 @@
     ]
    ],
    "cat": "city",
-   "dash": true
+   "dash": true,
+   "region": "riyadh"
   },
   {
    "n": "Tour Ext 2",
@@ -157,7 +163,8 @@
     ]
    ],
    "cat": "city",
-   "dash": true
+   "dash": true,
+   "region": "riyadh"
   },
   {
    "n": "RYA 1: N - L - K - M - J - Z -( X - H)",
@@ -187,7 +194,8 @@
      46.853783
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "RYA 1: Z - X - H ( not Approved )",
@@ -205,7 +213,8 @@
      46.77889729
     ]
    ],
-   "cat": "na"
+   "cat": "na",
+   "region": "riyadh"
   },
   {
    "n": "RYA 2: T - KAFD",
@@ -219,7 +228,8 @@
      46.6475
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "RYA 3: X - O - R (Not Approved)",
@@ -237,7 +247,8 @@
      46.688889
     ]
    ],
-   "cat": "na"
+   "cat": "na",
+   "region": "riyadh"
   },
   {
    "n": "RYA 4: S - P - H - O - Y - T (Not Approved)",
@@ -267,7 +278,8 @@
      46.722222
     ]
    ],
-   "cat": "na"
+   "cat": "na",
+   "region": "riyadh"
   },
   {
    "n": "RYA 5: MALHAM - N - D - West Gate - B - C - DR-16 - KAFD - (DR-12 - R)",
@@ -309,7 +321,8 @@
      46.647014
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "RYA 5 (Not approved)",
@@ -323,7 +336,8 @@
      46.68885671
     ]
    ],
-   "cat": "na"
+   "cat": "na",
+   "region": "riyadh"
   },
   {
    "n": "RYA 6: HRGAN - D",
@@ -337,7 +351,8 @@
      46.501111
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "RYA 7: MZHMYA - West Gate",
@@ -351,7 +366,8 @@
      46.526944
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "RYA 8: East Gate - J",
@@ -365,7 +381,8 @@
      46.805
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "RYA 9: RAJEM - East Gate - Z",
@@ -383,7 +400,8 @@
      46.853783
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "RYA 10: Z - Y",
@@ -397,7 +415,8 @@
      46.738876
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "NAJD 1: DR-16 - DR-17 - TURAYF - DR-1 - DR-2 - DR-3 - DR-4 - HANIFAH - DR-5 - DR-6 - DR-7",
@@ -447,7 +466,8 @@
      46.6245
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "NAJD 2: KAFD - DR-15 - TURAYF",
@@ -465,7 +485,8 @@
      46.59034444
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "NAJD 3: DR-7 - DR-8 - DR-9 - DR-10 - DR-11 - DR-12",
@@ -495,7 +516,8 @@
      46.66708333
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "NAJD 4: DR-10 - DR-13 - DR-14 - DR-15",
@@ -517,7 +539,8 @@
      46.63665833
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "EotW via RYA-5 → B → Al Manjour (available, no approval)",
@@ -545,7 +568,8 @@
    ],
    "cat": "avail",
    "col": "#ffffff",
-   "dash": false
+   "dash": false,
+   "region": "riyadh"
   },
   {
    "n": "RYA: Y - T",
@@ -559,7 +583,8 @@
      46.722222
     ]
    ],
-   "cat": "appr"
+   "cat": "appr",
+   "region": "riyadh"
   },
   {
    "n": "RYA 5 PROPOSED relocation (B-C-KAFD +0.5NM E)",
@@ -589,7 +614,8 @@
      24.678889,
      46.688889
     ]
-   ]
+   ],
+   "region": "riyadh"
   },
   {
    "n": "DR-9 ↔ R Link (proposed)",
@@ -604,7 +630,50 @@
     ]
    ],
    "cat": "prop",
-   "dash": true
+   "dash": true,
+   "region": "riyadh"
+  },
+  {
+   "n": "DMM→BAH Skybridge: OEDF - East Gate - LADNA - OBBI (published outbound, NOT approved)",
+   "c": [
+    [
+     26.4712,
+     49.7979
+    ],
+    [
+     26.50666667,
+     49.97972222
+    ],
+    [
+     26.46370556,
+     50.37906389
+    ],
+    [
+     26.2708,
+     50.6336
+    ]
+   ],
+   "cat": "pub",
+   "region": "dmm"
+  },
+  {
+   "n": "BAH→DMM Skybridge: OBBI - NARMI - OEDF (published inbound, NOT approved)",
+   "c": [
+    [
+     26.2708,
+     50.6336
+    ],
+    [
+     26.30064722,
+     50.32750278
+    ],
+    [
+     26.4712,
+     49.7979
+    ]
+   ],
+   "cat": "pub",
+   "region": "dmm"
   }
  ],
  "pts": [
@@ -612,343 +681,400 @@
    "n": "L01 (proposed — 3 NM N of L)",
    "lat": 25.138333,
    "lon": 46.621111,
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "D01 (proposed — 3 NM N of D)",
    "lat": 25.094444,
    "lon": 46.468056,
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "BLVD 1",
    "lat": 24.76249555,
    "lon": 46.60280894,
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "BLVD 2",
    "lat": 24.77906579,
    "lon": 46.59597971,
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "BLVD 3",
    "lat": 24.79399586,
    "lon": 46.6307712,
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "BOTQ1",
    "lat": 24.65326535,
    "lon": 46.71116659,
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "Boutique Hotel Helipad",
    "lat": 24.64128,
    "lon": 46.711225,
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "Al Manjour EotW",
    "lat": 24.71253105,
    "lon": 46.19641793,
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "DR-1",
    "lat": 24.72736944,
    "lon": 46.58354167,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-2",
    "lat": 24.71335833,
    "lon": 46.58234444,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-3",
    "lat": 24.700325,
    "lon": 46.57161111,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-4",
    "lat": 24.690825,
    "lon": 46.56188889,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-5",
    "lat": 24.66933889,
    "lon": 46.581025,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-6",
    "lat": 24.66570278,
    "lon": 46.60098333,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-7 - Ritz Hotel",
    "lat": 24.66544722,
    "lon": 46.6245,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-8",
    "lat": 24.67748889,
    "lon": 46.64787778,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-9",
    "lat": 24.68589444,
    "lon": 46.65726944,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-10",
    "lat": 24.69841389,
    "lon": 46.65638611,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-11",
    "lat": 24.71488333,
    "lon": 46.65956389,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-12",
    "lat": 24.72187222,
    "lon": 46.66708333,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-13",
    "lat": 24.72626667,
    "lon": 46.644025,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-14",
    "lat": 24.74074722,
    "lon": 46.62849167,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-15",
    "lat": 24.75619444,
    "lon": 46.63665833,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-16",
    "lat": 24.77721111,
    "lon": 46.63897222,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "DR-17",
    "lat": 24.75450556,
    "lon": 46.58206944,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "TURAYF",
    "lat": 24.73649167,
    "lon": 46.59034444,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "HANIFAH",
    "lat": 24.68085833,
    "lon": 46.55718056,
-   "cat": "najd"
+   "cat": "najd",
+   "region": "riyadh"
   },
   {
    "n": "A - Kuzam Residential",
    "lat": 24.939722,
    "lon": 46.6475,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "B - Int Special Forces/King Fahad Rd",
    "lat": 24.884722,
    "lon": 46.584444,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "C - Int King Salman/King Fahad Rd",
    "lat": 24.826667,
    "lon": 46.614167,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "D - Salbuok Bridge",
    "lat": 25.054167,
    "lon": 46.501111,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "East Gate - 9th Electric Station",
    "lat": 24.961111,
    "lon": 47.061667,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "H - Al Rajhi Mosque",
    "lat": 24.677094,
    "lon": 46.779205,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "HRGAN - Abar Hargan Town",
    "lat": 25.0775,
    "lon": 46.228611,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "J - Janadriyah",
    "lat": 24.954167,
    "lon": 46.805,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "K - Khuzam Oasis",
    "lat": 25.076389,
    "lon": 46.713056,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "KAFD - King Abdullah Financial District",
    "lat": 24.760833,
    "lon": 46.6475,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "L - Thumamah Road",
    "lat": 25.126944,
    "lon": 46.675,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "M - Equestrian Club",
    "lat": 25.02228,
    "lon": 46.7859,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "MALHAM - Malham (OESL)",
    "lat": 25.255556,
    "lon": 46.393056,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "MZHMYA - Almuzahmeyah City",
    "lat": 24.458056,
    "lon": 46.143056,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "N - Malham Bridge",
    "lat": 25.1875,
    "lon": 46.3925,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "O - Int Khuris/Eastern Ring Rd",
    "lat": 24.714722,
    "lon": 46.761667,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "P - Int East Ring/Southern Ring Rd",
    "lat": 24.630278,
    "lon": 46.803333,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "R - Int King Fahad/Makkah Rd",
    "lat": 24.678889,
    "lon": 46.688889,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "RAJEM - Rajem Intersection",
    "lat": 24.828889,
    "lon": 47.431389,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "S - Int Eastern Ring/Al-Kharj Rd",
    "lat": 24.502778,
    "lon": 46.936667,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "T - Int Northern Ring/Eastern Ring Rd",
    "lat": 24.7925,
    "lon": 46.722222,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "West Gate - Prince Sultan Humanitarian City",
    "lat": 24.986389,
    "lon": 46.526944,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "X - Int Khurais/Shaikh Jaber Rd",
    "lat": 24.76512,
    "lon": 46.841389,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "XRSC - Riyadh Helicopter Base",
    "lat": 24.970087,
    "lon": 46.734489,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "Y - Int King Abdullah/Eastern Ring Rd",
    "lat": 24.759972,
    "lon": 46.738876,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "Z - King Fahad Stadium",
    "lat": 24.828238,
    "lon": 46.853783,
-   "cat": "vrp"
+   "cat": "vrp",
+   "region": "riyadh"
   },
   {
    "n": "MRBA - Murabba",
    "lat": 24.8086124,
    "lon": 46.57929882,
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "B′ - proposed relocation (+0.5NM E)",
    "lat": 24.888333,
    "lon": 46.592722,
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "C′ - proposed relocation (+0.5NM E, confirmed Ziad)",
    "lat": 24.830237,
    "lon": 46.622459,
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   },
   {
    "n": "KAFD′ - proposed relocation (+0.5NM E)",
    "lat": 24.764361,
    "lon": 46.655806,
-   "cat": "prop"
+   "cat": "prop",
+   "region": "riyadh"
   }
  ]
 }

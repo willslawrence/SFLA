@@ -36,7 +36,12 @@ MAJMAAH_KMZ = (os.environ.get("THC_MAJMAAH_KMZ")
 MAJMAAH_KMZ_FALLBACK = os.path.join(SOURCES, "Majmaah Corridor.kmz")
 ROUTE_CATS = {                                   # cat -> (KML aabbggrr colour, width)
     "appr": ("ff0ec40e", 4),                     # approved  -> green
-    "na":   ("ff1111cc", 3),                     # not approved -> red
+    "na":   ("ff1111cc", 3),                     # not approved (asked, refused) -> red
+    # Published AIP routing that THC is NOT yet approved to fly (asked-nobody-yet, as
+    # distinct from "na" = asked and refused). Azure. NOTE: KML LineStyle supports only
+    # <color> and <width> — there is no dash/stipple property, so this renders SOLID in
+    # ForeFlight. The dashed treatment exists only on the HTML map. (2026-08-10)
+    "pub":  ("ffeda600", 3),                     # published, not approved -> azure
 }
 
 
