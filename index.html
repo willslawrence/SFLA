@@ -72,16 +72,29 @@ const root=document.getElementById('root');
 const params=new URLSearchParams(location.search);
 const area=params.get('area');
 
+const WORKER_URL='https://sfla-write.thehelicopter.workers.dev';
+
 Promise.all([
   fetch('config.json').then(r=>r.json()),
   fetch('data.geojson').then(r=>r.json())
-]).then(([cfg,data])=>{ area ? renderMap(cfg,data) : renderLanding(cfg,data); });
+]).then(([cfg,data])=>{
+  if(area){ renderMap(cfg,data); return; }
+  // Landing counts must reflect live Worker status, not the baked snapshot.
+  fetch(WORKER_URL).then(r=>r.json()).then(live=>{
+    if(!live||!live.sites) throw new Error('no live sites');
+    data.features.forEach(f=>{
+      const s=live.sites[f.properties.name];
+      if(s){ f.properties.status=s.status; f.properties.lastChecked=s.lastChecked; }
+    });
+    renderLanding(cfg,data,true);
+  }).catch(e=>{ console.warn('Live status unavailable:',e); renderLanding(cfg,data,false); });
+});
 
 function header(title, back){
   return `<div class="top"><img src="thc_logo.png" alt="THC"><h1>${title}</h1><span class="sp"></span>${back?'<a class="back" href="index.html">‹ All areas</a>':''}</div>`;
 }
 
-function renderLanding(cfg,data){
+function renderLanding(cfg,data,isLive){
   const cards = Object.entries(cfg.areas).map(([slug,a])=>{
     const pads=data.features.filter(f=>f.properties.areas.includes(a.tag));
     const need=pads.filter(f=>{
@@ -93,7 +106,7 @@ function renderLanding(cfg,data){
     return `<a class="card" style="--c:${a.color}" href="map.html?area=${slug}">
       <h2>${a.label}</h2><div class="n">${pads.length}</div>
       <div class="sub">SFLAs in this area</div>
-      ${need?`<div class="warn">${need} need a check</div>`:`<div class="sub">all current ✓</div>`}
+      ${!isLive?'':need?`<div class="warn">${need} need a check</div>`:`<div class="sub">all current ✓</div>`}
     </a>`;
   }).join('');
   root.innerHTML = header('THC — Safe Forced Landing Areas',false) +
