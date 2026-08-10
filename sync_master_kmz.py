@@ -82,6 +82,12 @@ with zipfile.ZipFile(KMZ, "w", zipfile.ZIP_DEFLATED) as zf:
 
 print(f"master KMZ rebuilt: {doc.count('<Placemark>')} placemarks "
       f"(areas {area_counts}, restricted {restricted.count('<Placemark>')}, retired {len(rpms)})")
+pending = sorted(suppressed - set(k for k, v in ret))
 print(f"  {len(suppressed)} Unsuitable pads kept out of the area folders "
-      f"({len(suppressed - set(k for k, v in ret))} of them not yet flagged retired)")
+      f"({len(pending)} not yet flagged retired)")
+if pending:
+    # Marked Unsuitable by a pilot but not yet reviewed. Either confirm and set
+    # retired: true in geometry.json, or tap it back to Suitable on the tracker
+    # if it was a mis-tap. See work/active/SFLA Unsuitable Review.md in the vault.
+    print("  awaiting Will's review: " + ", ".join(pending))
 subprocess.run(["python3", os.path.join(HERE, "build_foreflight_pack.py")], check=True)
