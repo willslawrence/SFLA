@@ -37,8 +37,6 @@
   .ffsteps{margin:0 0 14px;padding-left:20px}
   .ffsteps li{font-size:14px;line-height:1.55;margin:7px 0}
   .ffsteps b{color:var(--navy)}
-  .ffalready{background:#fdf3f3;border:1px solid #e6c9c9;border-left:4px solid var(--red);border-radius:10px;padding:11px 13px;margin:0 0 16px;font-size:13.5px;line-height:1.55;color:var(--ink)}
-  .ffalready b{color:var(--red)}
   .ffupd{background:#f6f7f9;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.5;color:var(--ink)}
   .ffupd b{color:var(--navy)}
   .ffkmz{display:inline-block;margin-top:14px;color:var(--muted);font-size:12.5px;text-decoration:underline}
@@ -119,16 +117,15 @@ function renderLanding(cfg,data,isLive){
      <div class="grid">${cards}</div>
      <div class="ffpanel">
        <div class="ffhd">✈️ ForeFlight — THC content pack</div>
-       <div class="ffsub">One import loads it all into ForeFlight: the <b>SFLA areas</b>, the <b>UAM routes</b> (green = approved · red = not approved), the <b>Majmaah corridor</b>, the <b>training &amp; competency-check areas</b>, and all <b>waypoints / VRPs</b>.</div>
-       <div class="ffalready"><b>Already have the pack? Just tap the button — this link is new.</b> Every release is published at its own address, so ForeFlight sees it as a fresh download rather than serving you the copy it already cached. If the version under <b>More → Custom Content</b> still looks old afterwards, delete <b>THC Part 135</b> there and tap the button again.</div>
+       <div class="ffsub">One import puts the whole THC picture into ForeFlight: the <b>SFLA areas</b>, the <b>UAM routes</b> (green = approved · red = not approved), the <b>Majmaah corridor</b>, the <b>training and competency check areas</b>, and all <b>THC waypoints and VRPs</b>.</div>
        <a class="ffbtn" href="https://foreflight.com/content?downloadURL=https://willslawrence.github.io/SFLA/THC-Part-135-202608111901.zip">Import into ForeFlight</a>
-       <div class="ffnote">Open this page on the iPad that has ForeFlight installed, then tap the button.</div>
+       <div class="ffnote">Do this on the iPad that has ForeFlight on it.</div>
        <ol class="ffsteps">
-         <li>Tap <b>Import into ForeFlight</b> — ForeFlight opens on the <b>Downloads</b> screen. Tap <b>OK</b> when it says the pack will be downloaded.</li>
-         <li>Go to <b>More → Custom Content</b>, find <b>THC Part 135</b>, and tap the blue <b>Download</b> button (downloads in a second or two).</li>
-         <li>Open <b>Maps</b> → <b>Layers</b>, scroll to the bottom (where KMZ layers sit) and <b>enable each THC layer</b>: Areas, Routes, Waypoints.</li>
+         <li>Tap <b>Import into ForeFlight</b>, then <b>OK</b>.</li>
+         <li>Go to <b>More → Custom Content</b>. You'll see two <b>THC Part 135</b> packs — tap the blue <b>⬇</b> on the new one, then delete the older one.</li>
+         <li>Open <b>Maps → Layers</b>, scroll to the bottom and switch on the <b>THC</b> layers.</li>
        </ol>
-       <div class="ffupd"><b>Getting updates later — come back to this page.</b> ForeFlight never pulls a new version on its own, and a link you bookmarked or were sent earlier will keep installing the pack it already cached. <b>Always start from this page</b>, where the button is repointed at the newest release every time the pack is rebuilt. Re-enable the layers under <b>Maps → Layers</b> afterwards. <i>If a re-import still shows the old version: delete <b>THC Part 135</b> under <b>More → Custom Content</b>, force-quit ForeFlight, then tap the button again.</i></div>
+       <div class="ffupd"><b>When there's an update, come back to this page and do the same three steps.</b> ForeFlight won't tell you there's a new one — we'll post a notice on the Fleet Map.</div>
        <a class="ffkmz" href="THC_SFLA_master.kmz" download>Fallback: download master KMZ (areas only)</a>
      </div></div>`;
 }
