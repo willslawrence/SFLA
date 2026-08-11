@@ -89,6 +89,18 @@ CAT_STYLES = {                                         # category -> (icon href,
 }
 _DEFAULT_STYLE = ("shapes/placemark_circle.png",    "ffff0000")   # blue dot — any other category
 
+# Waypoints dropped from the pack at BUILD time, by exact <name>.
+# Filtered here rather than deleted from sources/THC Waypoints.kmz, because that file is a
+# copy of the vault's waypoint set — editing the copy means the next refresh from the vault
+# silently reinstates whatever was removed. (The 19 NAJD fixes de-duped on 2026-08-03 WERE
+# cut from the KMZ itself and carry exactly that risk; move them here if they ever return.)
+DROP_WAYPOINTS = {
+    # KAFD is in the set twice, ~12 m apart, so the two markers overlap on the map:
+    # "KAFD RUH" (Heli/Airports -> white heliport glyph) and "KAFD_RUH" (VRP -> blue
+    # triangle, drawn as "KAFD"). Will 2026-08-11: keep the blue VRP, drop the white one.
+    "KAFD RUH",
+}
+
 _PM_RE = re.compile(r'<Placemark>(.*?)</Placemark>', re.S)
 _NAME_RE = re.compile(r'<name>(.*?)</name>', re.S)
 _DESC_RE = re.compile(r'<description>(.*?)</description>', re.S)
@@ -117,6 +129,20 @@ def _style_block(sid, href, color):
         '<hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/></IconStyle>'
         '<LabelStyle><color>ffffffff</color><scale>1</scale></LabelStyle></Style>'
         % (sid, color, _ICON_SCALE, _ICON_BASE, href))
+
+
+def drop_waypoints(kml):
+    """Remove every Placemark whose <name> is in DROP_WAYPOINTS. Returns (kml, [names])."""
+    dropped = []
+
+    def repl(m):
+        nm = _NAME_RE.search(m.group(1))
+        if nm and nm.group(1).strip() in DROP_WAYPOINTS:
+            dropped.append(nm.group(1).strip())
+            return ""
+        return m.group(0)
+
+    return _PM_RE.sub(repl, kml), dropped
 
 
 def style_waypoint_labels(kml):
@@ -399,6 +425,13 @@ def build():
             continue
         kml = kml_from_kmz(src)
         if out_name == "THC Waypoints.kml":
+            kml, dropped = drop_waypoints(kml)
+            for d in dropped:
+                print(f"  dropped duplicate waypoint: {d}")
+            missing = DROP_WAYPOINTS - set(dropped)
+            if missing:
+                print(f"  WARN: DROP_WAYPOINTS entries not found (renamed upstream?): "
+                      f"{', '.join(sorted(missing))}")
             kml, mapping = style_waypoint_labels(kml)
             total = kml.count('styleUrl>#thc_')
             print(f"  labeled {total} waypoints ({len(mapping)} VRPs shortened to codes):")

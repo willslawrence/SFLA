@@ -5,7 +5,11 @@
     "committed fallback copy at sources/training-areas.json. Coordinates are [lat, lon] decimal degrees.",
     "Created 2026-08-11 from Will's dictated survey. Areas verified to contain every listed point.",
     "NOTE the H125 training area radial: the points sit WNW of KSA, i.e. on the 284 radial. The 102",
-    "first quoted was the reciprocal (inbound course 104) — confirmed with Will 2026-08-11."
+    "first quoted was the reciprocal (inbound course 104) — confirmed with Will 2026-08-11.",
+    "The comp-check routes start and end at EAST GATE, not XRSC. The original XRSC / M legs were",
+    "cut 2026-08-11 (Will, after seeing the pack on his phone): approved VFR routing between the",
+    "airport and M already exists, so drawing our own line over it added clutter, not information.",
+    "EAST GATE is the entry and exit point for the comp check area."
   ],
 
   "areas": [
@@ -35,14 +39,14 @@
 
   "routes": [
     {
-      "name": "Comp check outbound - XRSC / M / EAST GATE / PAD",
+      "name": "Comp check outbound - EAST GATE / PAD",
       "cat": "out",
-      "c": [[24.970087, 46.734489], [25.022280, 46.785900], [24.961111, 47.061668], [25.042, 47.287]]
+      "c": [[24.961111, 47.061668], [25.042, 47.287]]
     },
     {
-      "name": "Comp check inbound - AUTO / EAST GATE / M / XRSC",
+      "name": "Comp check inbound - AUTO / EAST GATE",
       "cat": "in",
-      "c": [[24.974, 47.250], [24.961111, 47.061668], [25.022280, 46.785900], [24.970087, 46.734489]]
+      "c": [[24.974, 47.250], [24.961111, 47.061668]]
     },
     {
       "name": "H125 training - OETH / N / ELO_LAYDOWN (both ways)",
