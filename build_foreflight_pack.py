@@ -19,8 +19,21 @@ import os, time, json, zipfile, shutil, tempfile, re
 HERE = os.path.dirname(os.path.abspath(__file__))
 MASTER_KMZ = os.path.join(HERE, "THC_SFLA_master.kmz")
 SOURCES = os.path.join(HERE, "sources")          # waypoint KMZ sources (committed)
-OUT_ZIP = os.path.join(HERE, "THC-Part-135.zip")
+OUT_ZIP = os.path.join(HERE, "THC-Part-135.zip")     # stable alias — see release_zip() below
 PACK_NAME = "THC Part 135"
+
+# --- ForeFlight URL cache-busting -------------------------------------------------
+# ForeFlight's foreflight.com/content?downloadURL=... service fetches through ITS OWN
+# servers and caches BY URL.  Republishing new content at an unchanged filename keeps
+# serving pilots the old pack — deleting it on the device and force-quitting does NOT
+# clear it (proved 2026-08-03 and again 2026-08-11; see the vault's brain/Gotchas.md).
+# The only lever that has actually worked is publishing at a URL ForeFlight has never
+# seen, so every build also writes a version-stamped copy and prints its import link.
+# A query string (?v=N) would be the tidier trick but is untested here and has to be
+# percent-encoded inside downloadURL=; the filename bump is the one with evidence.
+PAGES_BASE = "https://willslawrence.github.io/SFLA"
+LINK_FILE = os.path.join(HERE, "foreflight-import-link.txt")
+KEEP_RELEASES = 5                                    # older stamped zips are pruned (logged)
 
 # UAM routes layer — built from the SAME source the Riyadh UAM Route Map uses
 # (vault scripts/data/uam-route-features.json), so a route-map update + a pack rebuild
@@ -260,6 +273,37 @@ def training_kml(json_path):
     return layer, navdata, names, len(routes), len(pts)
 
 
+def publish_release(version):
+    """Copy the freshly built pack to a version-stamped filename and return
+    (release_zip_path, import_link).
+
+    The stamped name is what busts ForeFlight's server-side URL cache — see the
+    comment on PAGES_BASE.  THC-Part-135.zip is kept as a stable alias so older
+    links and docs still resolve (they will just serve whatever ForeFlight already
+    cached for that URL, which is exactly the failure mode this works around).
+    Older stamped releases beyond KEEP_RELEASES are pruned so the Pages site does
+    not grow without bound; anything dropped is logged, never dropped silently.
+    """
+    name = "THC-Part-135-%s.zip" % version
+    release = os.path.join(HERE, name)
+    shutil.copyfile(OUT_ZIP, release)
+
+    link = "https://foreflight.com/content?downloadURL=%s/%s" % (PAGES_BASE, name)
+    with open(LINK_FILE, "w") as f:
+        f.write("%s\n\nRelease %s, built %s.\n"
+                "Give pilots THIS link — a new one is minted every release because\n"
+                "ForeFlight caches content packs server-side by URL.\n"
+                % (link, version, time.strftime("%Y-%m-%d %H:%M")))
+
+    stamped = sorted(n for n in os.listdir(HERE)
+                     if re.fullmatch(r"THC-Part-135-\d+\.zip", n))
+    for old in stamped[:-KEEP_RELEASES]:
+        os.remove(os.path.join(HERE, old))
+        print(f"  pruned old release {old} (keeping last {KEEP_RELEASES})")
+
+    return release, link
+
+
 def build():
     version = int(time.strftime("%Y%m%d%H%M"))     # higher = newer; ForeFlight detects updates
     manifest = {
@@ -358,9 +402,16 @@ def build():
                 z.write(full, arc)
     shutil.rmtree(tmp)
 
+    release_zip, link = publish_release(version)
+
     areas = kml_from_kmz(MASTER_KMZ).count("<Placemark>")
     print(f"Built {OUT_ZIP}")
     print(f"  version {version} · {areas} area polygons · {wp_count + trn_points} waypoints")
+    print(f"  release copy: {os.path.basename(release_zip)}")
+    print("\n  GIVE PILOTS THIS LINK (it changes every release — the old one keeps\n"
+          "  serving the old pack from ForeFlight's cache):\n")
+    print(f"    {link}\n")
+    print(f"  also written to {os.path.basename(LINK_FILE)}")
 
 
 if __name__ == "__main__":
