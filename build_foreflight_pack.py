@@ -295,8 +295,26 @@ def publish_release(version):
                 "ForeFlight caches content packs server-side by URL.\n"
                 % (link, version, time.strftime("%Y-%m-%d %H:%M")))
 
-    stamped = sorted(n for n in os.listdir(HERE)
-                     if re.fullmatch(r"THC-Part-135-\d+\.zip", n))
+    # Point the SFLA landing page's "Import into ForeFlight" button at THIS release.
+    # index.html is what pilots actually reach (the Fleet Map's 📲 ForeFlight Pack
+    # button links here), so a hardcoded link there goes stale the moment we rebuild.
+    page = os.path.join(HERE, "index.html")
+    if os.path.exists(page):
+        html = open(page, encoding="utf-8").read()
+        new_html, n = re.subn(
+            r'href="https://foreflight\.com/content\?downloadURL='
+            r'https://willslawrence\.github\.io/SFLA/THC-Part-135[^"]*"',
+            'href="%s"' % link, html)
+        if n:
+            open(page, "w", encoding="utf-8").write(new_html)
+            print(f"  index.html import button -> {name} ({n} link updated)")
+        else:
+            print("  WARN: no import link found in index.html — update it by hand")
+    else:
+        print("  WARN: index.html missing — landing-page link NOT updated")
+
+    stamped = sorted(n_ for n_ in os.listdir(HERE)
+                     if re.fullmatch(r"THC-Part-135-\d+\.zip", n_))
     for old in stamped[:-KEEP_RELEASES]:
         os.remove(os.path.join(HERE, old))
         print(f"  pruned old release {old} (keeping last {KEEP_RELEASES})")
