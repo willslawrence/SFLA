@@ -34,6 +34,11 @@ ROUTES_JSON_FALLBACK = os.path.join(SOURCES, "uam-route-features.json")
 MAJMAAH_KMZ = (os.environ.get("THC_MAJMAAH_KMZ")
                or os.path.join(_VAULT, "reference", "uam-kmz", "Majmaah Corridor.kmz"))
 MAJMAAH_KMZ_FALLBACK = os.path.join(SOURCES, "Majmaah Corridor.kmz")
+# Training / competency-check areas — shaded boxes, transit routes and the exercise points.
+# Source of truth is the vault JSON; the repo copy is the offline fallback + provenance.
+TRAINING_JSON = (os.environ.get("THC_TRAINING_JSON")
+                 or os.path.join(_VAULT, "scripts", "data", "training-areas.json"))
+TRAINING_JSON_FALLBACK = os.path.join(SOURCES, "training-areas.json")
 ROUTE_CATS = {                                   # cat -> (KML aabbggrr colour, width)
     "appr": ("ff0ec40e", 4),                     # approved  -> green
     "na":   ("ff1111cc", 3),                     # not approved (asked, refused) -> red
@@ -190,6 +195,71 @@ def routes_layer_kml(json_path):
     return kml, listing
 
 
+# Training-area styling. KML colours are aabbggrr, NOT rrggbb.
+TRAIN_FILL    = "33ffa03a"                       # blue #3aa0ff at 20% -> transparent shading
+TRAIN_OUTLINE = "ff0095ff"                       # orange #ff9500, thin
+TRAIN_RTE = {                                    # cat -> (colour, width)
+    "out": ("ffffa03a", 2),                      # blue  #3aa0ff
+    "in":  ("ffc85fff", 2),                      # pink  #ff5fc8
+}
+
+
+def training_kml(json_path):
+    """Build the training-areas MAP LAYER (shaded area boxes + transit routes) and the
+    matching NAVDATA file (the exercise points, so a pilot can enter them in a flight
+    plan).  Points live only in navdata so they are not drawn twice.
+    Returns (layer_kml, navdata_kml, [area names], n_routes, n_points)."""
+    data = json.load(open(json_path, encoding="utf-8"))
+
+    styles = ('<Style id="trn_area"><LineStyle><color>%s</color><width>2</width></LineStyle>'
+              '<PolyStyle><color>%s</color><fill>1</fill><outline>1</outline></PolyStyle></Style>'
+              % (TRAIN_OUTLINE, TRAIN_FILL))
+    styles += "".join(
+        '<Style id="trn_%s"><LineStyle><color>%s</color><width>%d</width></LineStyle>'
+        '<PolyStyle><fill>0</fill></PolyStyle></Style>' % (cat, col, w)
+        for cat, (col, w) in TRAIN_RTE.items())
+
+    pms, names = [], []
+    for a in data.get("areas", []):
+        ring = list(a["coords"]) + [a["coords"][0]]          # KML rings must close
+        coords = " ".join("%s,%s,0" % (p[1], p[0]) for p in ring)
+        pms.append('<Placemark><name>%s</name><description>%s</description>'
+                   '<styleUrl>#trn_area</styleUrl><Polygon><tessellate>1</tessellate>'
+                   '<outerBoundaryIs><LinearRing><coordinates>%s</coordinates>'
+                   '</LinearRing></outerBoundaryIs></Polygon></Placemark>'
+                   % (_xml_escape(a["name"]), _xml_escape(a.get("note", "")), coords))
+        names.append(a["name"])
+
+    routes = data.get("routes", [])
+    for r in routes:
+        cat = r.get("cat", "out")
+        if cat not in TRAIN_RTE:
+            cat = "out"
+        coords = " ".join("%s,%s,0" % (p[1], p[0]) for p in r["c"])
+        pms.append('<Placemark><name>%s</name><styleUrl>#trn_%s</styleUrl>'
+                   '<LineString><tessellate>1</tessellate><coordinates>%s</coordinates>'
+                   '</LineString></Placemark>' % (_xml_escape(r["name"]), cat, coords))
+
+    layer = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+             '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
+             '<name>THC Training Areas</name>\n' + styles + "\n" + "\n".join(pms)
+             + "\n</Document></kml>\n")
+
+    pts = data.get("points", [])
+    wp_style = _style_block("thc_training", "shapes/placemark_circle.png", "ff3ad4a0")
+    wp = "\n".join(
+        '<Placemark><name>%s</name><description>%s</description>'
+        '<styleUrl>#thc_training</styleUrl><Point><coordinates>%s,%s,0</coordinates></Point>'
+        '</Placemark>' % (_xml_escape(p["n"]), _xml_escape(p.get("d", "")), p["lon"], p["lat"])
+        for p in pts)
+    navdata = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+               '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
+               '<name>THC Training Points</name>\n' + wp_style + "\n" + wp
+               + "\n</Document></kml>\n")
+
+    return layer, navdata, names, len(routes), len(pts)
+
+
 def build():
     version = int(time.strftime("%Y%m%d%H%M"))     # higher = newer; ForeFlight detects updates
     manifest = {
@@ -238,6 +308,23 @@ def build():
     else:
         print(f"  WARN: Majmaah Corridor source not found ({maj_src}) — layer skipped")
 
+    # Training / competency-check areas -> layer KML (boxes + transit routes) and the
+    # exercise points -> navdata KML (enterable in a ForeFlight flight plan).
+    trn_src = TRAINING_JSON if os.path.exists(TRAINING_JSON) else TRAINING_JSON_FALLBACK
+    trn_points = 0
+    if os.path.exists(trn_src):
+        if os.path.abspath(trn_src) != os.path.abspath(TRAINING_JSON_FALLBACK):
+            shutil.copyfile(trn_src, TRAINING_JSON_FALLBACK)   # committed provenance copy
+        trn_layer, trn_nav, trn_names, n_rte, trn_points = training_kml(trn_src)
+        with open(os.path.join(root, "layers", "THC Training Areas.kml"), "w") as f:
+            f.write(trn_layer)
+        with open(os.path.join(root, "navdata", "THC Training Points.kml"), "w") as f:
+            f.write(trn_nav)
+        print(f"  training layer: {len(trn_names)} areas ({', '.join(trn_names)}) "
+              f"+ {n_rte} routes; {trn_points} points -> navdata")
+    else:
+        print(f"  WARN: training source not found ({trn_src}) — training layer skipped")
+
     # waypoints -> KML in navdata/  (each source KMZ becomes one KML file)
     wp_sources = {
         "THC Waypoints.kml": os.path.join(SOURCES, "THC Waypoints.kmz"),
@@ -273,7 +360,7 @@ def build():
 
     areas = kml_from_kmz(MASTER_KMZ).count("<Placemark>")
     print(f"Built {OUT_ZIP}")
-    print(f"  version {version} · {areas} area polygons · {wp_count} waypoints")
+    print(f"  version {version} · {areas} area polygons · {wp_count + trn_points} waypoints")
 
 
 if __name__ == "__main__":

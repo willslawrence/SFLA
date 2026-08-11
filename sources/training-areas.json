@@ -1,0 +1,64 @@
+{
+  "_comment": [
+    "Source of truth for the ForeFlight 'THC Training Areas' layer + 'THC Training Points' navdata.",
+    "Consumed by ~/Connected/Cowork/Projects/sfla-tracker-v2/build_foreflight_pack.py, which keeps a",
+    "committed fallback copy at sources/training-areas.json. Coordinates are [lat, lon] decimal degrees.",
+    "Created 2026-08-11 from Will's dictated survey. Areas verified to contain every listed point.",
+    "NOTE the H125 training area radial: the points sit WNW of KSA, i.e. on the 284 radial. The 102",
+    "first quoted was the reciprocal (inbound course 104) — confirmed with Will 2026-08-11."
+  ],
+
+  "areas": [
+    {
+      "name": "COMP CHECK AREA",
+      "note": "KSA VOR - 32 nm DME / 086 Radial",
+      "shape": "rectangle rotated onto the AUTO->PAD axis (026 T), 5.9 x 2.0 NM",
+      "coords": [
+        [24.97210, 47.22494],
+        [25.06121, 47.27290],
+        [25.04660, 47.30596],
+        [24.95748, 47.25800]
+      ]
+    },
+    {
+      "name": "H125 TRAINING AREA",
+      "note": "KSA VOR - 23 nm DME / 284 Radial",
+      "shape": "north-aligned rectangle, 2.0 x 2.6 NM",
+      "coords": [
+        [25.0553, 46.2778],
+        [25.0887, 46.2778],
+        [25.0887, 46.3252],
+        [25.0553, 46.3252]
+      ]
+    }
+  ],
+
+  "routes": [
+    {
+      "name": "Comp check outbound - XRSC / M / EAST GATE / PAD",
+      "cat": "out",
+      "c": [[24.970087, 46.734489], [25.022280, 46.785900], [24.961111, 47.061668], [25.042, 47.287]]
+    },
+    {
+      "name": "Comp check inbound - AUTO / EAST GATE / M / XRSC",
+      "cat": "in",
+      "c": [[24.974, 47.250], [24.961111, 47.061668], [25.022280, 46.785900], [24.970087, 46.734489]]
+    },
+    {
+      "name": "H125 training - OETH / N / ELO_LAYDOWN (both ways)",
+      "cat": "out",
+      "c": [[25.210800, 46.634000], [25.187500, 46.392500], [25.074, 46.316]]
+    }
+  ],
+
+  "points": [
+    {"n": "AUTO_COMP",             "lat": 24.974, "lon": 47.250, "d": "Competency check - autorotation"},
+    {"n": "CONFINED_COMP",         "lat": 24.995, "lon": 47.256, "d": "Competency check - confined area"},
+    {"n": "LOSS_OF_TR_HYD_COMP",   "lat": 24.986, "lon": 47.257, "d": "Competency check - loss of tail rotor / hydraulics"},
+    {"n": "SLOPE_COMP",            "lat": 24.992, "lon": 47.252, "d": "Competency check - slope"},
+    {"n": "PAD_COMP",              "lat": 25.042, "lon": 47.287, "d": "Competency check - pad"},
+    {"n": "CONFINED_TRG_H125",     "lat": 25.074, "lon": 46.287, "d": "H125 training - confined area"},
+    {"n": "AUTO_TRG_H125",         "lat": 25.070, "lon": 46.290, "d": "H125 training - autorotation aiming point"},
+    {"n": "ELO_LAYDOWN_TRG_H125",  "lat": 25.074, "lon": 46.316, "d": "H125 training - ELO laydown"}
+  ]
+}

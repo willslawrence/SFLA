@@ -11,6 +11,11 @@ A pad can belong to multiple areas (multi-select `Areas`) — edited once, shows
 - **worker/** = the Cloudflare Worker that fronts Airtable (`worker/README.md`). Folded in from
   its own repo 2026-08-10 — the split had left a stale copy here that was missing half the API.
 - **import_kmz.py** = bring a survey KMZ into the tracker. `--dry-run` first, always.
+- **Training areas** (comp check + H125 training) come from the vault JSON
+  `scripts/data/training-areas.json` → `layers/THC Training Areas.kml` (shaded boxes +
+  transit routes) and `navdata/THC Training Points.kml` (the exercise points, so they're
+  enterable in a flight plan). Edit the vault JSON, then re-run `build_foreflight_pack.py`;
+  `sources/training-areas.json` is the auto-refreshed offline fallback.
 
 ### Rebuild chain after any pad or tag change
 
