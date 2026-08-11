@@ -89,16 +89,29 @@ CAT_STYLES = {                                         # category -> (icon href,
 }
 _DEFAULT_STYLE = ("shapes/placemark_circle.png",    "ffff0000")   # blue dot — any other category
 
-# Waypoints dropped from the pack at BUILD time, by exact <name>.
-# Filtered here rather than deleted from sources/THC Waypoints.kmz, because that file is a
-# copy of the vault's waypoint set — editing the copy means the next refresh from the vault
-# silently reinstates whatever was removed. (The 19 NAJD fixes de-duped on 2026-08-03 WERE
-# cut from the KMZ itself and carry exactly that risk; move them here if they ever return.)
+# Waypoints kept OUT of the THC Waypoints layer, by exact <name>.
+#
+# This is a standing guarantee, not a one-off edit: whatever is listed here never reaches
+# the pack, whether or not it is currently in the source KMZ. Excluding by name rather than
+# by deleting from sources/THC Waypoints.kmz is the point — a deletion is invisible, and a
+# later refresh of that file silently undoes it.
+#
+# ⚠️ sources/THC Waypoints.kmz is NOT a clean copy of the vault's
+# reference/uam-kmz/THC Waypoints.kmz — checked 2026-08-11, the two have diverged in BOTH
+# directions (the repo has the Bahrain Skybridge points the vault lacks; the vault has the
+# Majmaah corridor fixes the repo lacks). Neither is a superset, so do NOT "resync" one
+# from the other without diffing the name sets first.
 DROP_WAYPOINTS = {
     # KAFD is in the set twice, ~12 m apart, so the two markers overlap on the map:
     # "KAFD RUH" (Heli/Airports -> white heliport glyph) and "KAFD_RUH" (VRP -> blue
     # triangle, drawn as "KAFD"). Will 2026-08-11: keep the blue VRP, drop the white one.
     "KAFD RUH",
+    # The 19 NAJD fixes belong in NAJD VRPs.kml, not here. Cut straight out of the KMZ on
+    # 2026-08-03, so they are already absent from the current source and these entries are
+    # inert — they exist so a future refresh of the KMZ cannot bring the duplicates back.
+    "DR-1", "DR-2", "DR-3", "DR-4", "DR-5", "DR-6", "DR-7 - Ritz Hotel", "DR-8", "DR-9",
+    "DR-10", "DR-11", "DR-12", "DR-13", "DR-14", "DR-15", "DR-16", "DR-17",
+    "TURAYF", "HANIFAH",
 }
 
 _PM_RE = re.compile(r'<Placemark>(.*?)</Placemark>', re.S)
@@ -426,12 +439,13 @@ def build():
         kml = kml_from_kmz(src)
         if out_name == "THC Waypoints.kml":
             kml, dropped = drop_waypoints(kml)
-            for d in dropped:
+            # An entry that matches nothing is not an error — the exclusion list is a
+            # standing guarantee, and most of it is already absent from the source.
+            for d in sorted(dropped):
                 print(f"  dropped duplicate waypoint: {d}")
-            missing = DROP_WAYPOINTS - set(dropped)
-            if missing:
-                print(f"  WARN: DROP_WAYPOINTS entries not found (renamed upstream?): "
-                      f"{', '.join(sorted(missing))}")
+            inert = DROP_WAYPOINTS - set(dropped)
+            print(f"  DROP_WAYPOINTS: {len(dropped)} removed, "
+                  f"{len(inert)} already absent from the source (guarding against re-add)")
             kml, mapping = style_waypoint_labels(kml)
             total = kml.count('styleUrl>#thc_')
             print(f"  labeled {total} waypoints ({len(mapping)} VRPs shortened to codes):")
