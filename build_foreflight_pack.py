@@ -52,6 +52,12 @@ MAJMAAH_KMZ_FALLBACK = os.path.join(SOURCES, "Majmaah Corridor.kmz")
 TRAINING_JSON = (os.environ.get("THC_TRAINING_JSON")
                  or os.path.join(_VAULT, "scripts", "data", "training-areas.json"))
 TRAINING_JSON_FALLBACK = os.path.join(SOURCES, "training-areas.json")
+# Waypoints — GENERATED in the vault from Files/Waypoints/Waypoints Master.csv by
+# scripts/build-foreflight-csv.py (the CSV is the only editing surface). Falls back to the
+# committed copy when the vault isn't mounted, like the other vault-sourced layers.
+WAYPOINTS_KMZ = (os.environ.get("THC_WAYPOINTS_KMZ")
+                 or os.path.join(_VAULT, "Files", "Waypoints", "THC Waypoints.kmz"))
+WAYPOINTS_KMZ_FALLBACK = os.path.join(SOURCES, "THC Waypoints.kmz")
 ROUTE_CATS = {                                   # cat -> (KML aabbggrr colour, width)
     "appr": ("ff0ec40e", 4),                     # approved  -> green
     "na":   ("ff1111cc", 3),                     # not approved (asked, refused) -> red
@@ -96,15 +102,15 @@ _DEFAULT_STYLE = ("shapes/placemark_circle.png",    "ffff0000")   # blue dot —
 # by deleting from sources/THC Waypoints.kmz is the point — a deletion is invisible, and a
 # later refresh of that file silently undoes it.
 #
-# ⚠️ sources/THC Waypoints.kmz is NOT a clean copy of the vault's
-# reference/uam-kmz/THC Waypoints.kmz — checked 2026-08-11, the two have diverged in BOTH
-# directions (the repo has the Bahrain Skybridge points the vault lacks; the vault has the
-# Majmaah corridor fixes the repo lacks). Neither is a superset, so do NOT "resync" one
-# from the other without diffing the name sets first.
+# Since 2026-08-12 the waypoint KMZ is GENERATED from the vault's single editing surface
+# (Files/Waypoints/Waypoints Master.csv -> scripts/build-foreflight-csv.py), which ended
+# the era of two hand-maintained KMZ drifting in both directions. sources/THC Waypoints.kmz
+# is the auto-refreshed offline fallback, same as every other vault-sourced layer here.
 DROP_WAYPOINTS = {
-    # KAFD is in the set twice, ~12 m apart, so the two markers overlap on the map:
-    # "KAFD RUH" (Heli/Airports -> white heliport glyph) and "KAFD_RUH" (VRP -> blue
-    # triangle, drawn as "KAFD"). Will 2026-08-11: keep the blue VRP, drop the white one.
+    # KAFD was in the set twice, ~12 m apart, so the two markers overlapped: "KAFD RUH"
+    # (Heli/Airports -> white heliport glyph) and "KAFD_RUH" (VRP -> blue triangle, drawn
+    # as "KAFD"). Will 2026-08-11: keep the blue VRP. The duplicate row was deleted from
+    # the master CSV on 2026-08-12, so this entry is now an inert guard like the rest.
     "KAFD RUH",
     # The 19 NAJD fixes belong in NAJD VRPs.kml, not here. Cut straight out of the KMZ on
     # 2026-08-03, so they are already absent from the current source and these entries are
@@ -428,7 +434,8 @@ def build():
 
     # waypoints -> KML in navdata/  (each source KMZ becomes one KML file)
     wp_sources = {
-        "THC Waypoints.kml": os.path.join(SOURCES, "THC Waypoints.kmz"),
+        "THC Waypoints.kml": (WAYPOINTS_KMZ if os.path.exists(WAYPOINTS_KMZ)
+                              else WAYPOINTS_KMZ_FALLBACK),
         "NAJD VRPs.kml": os.path.join(SOURCES, "NAJD VRPs.kmz"),
     }
     wp_count = 0
@@ -436,6 +443,10 @@ def build():
         if not os.path.exists(src):
             print(f"  WARN: missing waypoint source {src} — skipped")
             continue
+        if (out_name == "THC Waypoints.kml"
+                and os.path.abspath(src) != os.path.abspath(WAYPOINTS_KMZ_FALLBACK)):
+            shutil.copyfile(src, WAYPOINTS_KMZ_FALLBACK)   # committed provenance copy
+            print(f"  waypoints from vault-generated KMZ [source: {os.path.basename(src)}]")
         kml = kml_from_kmz(src)
         if out_name == "THC Waypoints.kml":
             kml, dropped = drop_waypoints(kml)
