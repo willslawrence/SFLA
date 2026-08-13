@@ -136,6 +136,11 @@ DROP_WAYPOINTS = {
     # as "KAFD"). Will 2026-08-11: keep the blue VRP. The duplicate row was deleted from
     # the master CSV on 2026-08-12, so this entry is now an inert guard like the rest.
     "KAFD RUH",
+    # Same trap, same place: "SRSC RUH" and "XRSC RUH" were the identical coordinate under two
+    # names. Will 2026-08-10: "SRSC / SRC / XRSC are the same place" = the Riyadh base. Kept
+    # XRSC (the location indicator the rest of the vault and Flights Schedule use); the SRSC row
+    # was deleted from the master CSV on 2026-08-13, so this entry is an inert guard like the rest.
+    "SRSC RUH",
     # The 19 NAJD fixes belong in NAJD VRPs.kml, not here. Cut straight out of the KMZ on
     # 2026-08-03, so they are already absent from the current source and these entries are
     # inert — they exist so a future refresh of the KMZ cannot bring the duplicates back.
