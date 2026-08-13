@@ -82,16 +82,40 @@ def kml_from_kmz(path):
 # the glyph. Category comes from the "Area - Category" description. Tune freely.
 _ICON_BASE = "http://maps.google.com/mapfiles/kml/"
 _ICON_SCALE = "0.6"                                    # ~half the old pushpin; adjust to taste
-CAT_STYLES = {                                         # category -> (icon href, colour aabbggrr)
-    "VRP":           ("shapes/triangle.png",        "ffff0000"),  # blue triangle
-    "Hospitals":     ("shapes/hospitals.png",       "ff0000ff"),  # red
-    "Heli/Airports": ("shapes/heliport.png",        "ffffffff"),  # heliport glyph
-    "Ferry":         ("shapes/ferry.png",           "ffffffff"),  # ferry
-    "Info":          ("shapes/placemark_circle.png","ff00ffff"),  # yellow dot
-    "Fun":           ("shapes/star.png",            "ff0080ff"),  # orange star
-    "Rally":         ("shapes/flag.png",            "ff0080ff"),  # orange flag
-    "Alula":         ("shapes/star.png",            "ff00ffff"),  # landmark
-    "Neom":          ("shapes/star.png",            "ff00ffff"),  # landmark
+# The 12-type scheme adopted by Will 2026-08-13. Types 1-9 are Part 121's published
+# vocabulary, lifted verbatim from FOB 0326_01 ("THC New User Waypoints Database",
+# issued 09 Jul 2025, rev 24 Mar 2026) so the two AOCs' waypoint databases can merge
+# later without a renumber; 10-12 are P135-only additions. The type NUMBER is the
+# contract with P121 — keep the numbering even where we have no points, and never
+# reuse 6 for something else. Rationale + the full table: the vault note
+# "ForeFlight Waypoint Icon Scheme" (work/active/).
+#
+# Category strings here must match Files/Waypoints/Waypoints Master.csv exactly.
+CAT_STYLES = {                                          # category -> (icon href, colour aabbggrr)
+    # 1  Base — company base / primary helipad
+    "Base":             ("shapes/heliport.png",     "ffffffff"),  # untinted heliport
+    # 2  VRP — ATC visual reporting points (absorbed the old "Fix")
+    "VRP":              ("shapes/triangle.png",     "ffff0000"),  # blue triangle
+    # 3  Helipad — paved/concrete, suitable for normal helicopter ops
+    "Helipad":          ("shapes/heliport.png",     "ff0ec40e"),  # green heliport
+    # 4  Landing Zone — prepared site that is NOT a helipad
+    "Landing Zone":     ("shapes/donut.png",        "ff0ec40e"),  # green donut
+    # 5  Hospital LZ
+    "Hospital LZ":      ("shapes/hospitals.png",    "ff0000ff"),  # red
+    # 6  Rig — offshore. Reserved, unused on P135; kept so our IDs match P121's.
+    "Rig":              ("shapes/placemark_circle.png", "ffe08000"),  # steel blue dot
+    # 7  Landmark — reference points that are not NAV/ATC. Absorbed Fun/Alula/Neom/Ferry/Info.
+    "Landmark":         ("shapes/star.png",         "ff00ffff"),  # yellow star
+    # 8  VFR Approach — company VFR approach points (UVR / NAJD structure)
+    "VFR Approach":     ("shapes/triangle.png",     "ffdd00aa"),  # purple triangle
+    # 9  Mobile or Temporary — moving or short-lived points
+    "Mobile or Temporary": ("shapes/polygon.png",   "ff101010"),  # black diamond
+    # 10 Training area — competency-check + H125/H145 training points  [P135 only]
+    "Training area":    ("shapes/target.png",       "ff0080ff"),  # orange target
+    # 11 Rally / event — struck after the event                        [P135 only]
+    "Rally":            ("shapes/flag.png",         "ff0080ff"),  # orange flag
+    # 12 Proposed — NOT certified, not usable for commercial ops        [P135 only]
+    "Proposed":         ("shapes/open-diamond.png", "ffff00ff"),  # magenta open diamond
 }
 _DEFAULT_STYLE = ("shapes/placemark_circle.png",    "ffff0000")   # blue dot — any other category
 
