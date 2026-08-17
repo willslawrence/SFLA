@@ -141,12 +141,17 @@ DROP_WAYPOINTS = {
     # XRSC (the location indicator the rest of the vault and Flights Schedule use); the SRSC row
     # was deleted from the master CSV on 2026-08-13, so this entry is an inert guard like the rest.
     "SRSC RUH",
-    # The 19 NAJD fixes belong in NAJD VRPs.kml, not here. Cut straight out of the KMZ on
-    # 2026-08-03, so they are already absent from the current source and these entries are
-    # inert — they exist so a future refresh of the KMZ cannot bring the duplicates back.
+    # The 17 DR fixes belong in NAJD VRPs.kml, not here — they sit close together and
+    # clutter the main layer, so they get their own toggleable layer (Will, 2026-08-17).
+    # Cut straight out of the KMZ on 2026-08-03, so these entries are inert guards: they
+    # exist so a future refresh of the KMZ cannot bring the duplicates back.
     "DR-1", "DR-2", "DR-3", "DR-4", "DR-5", "DR-6", "DR-7 - Ritz Hotel", "DR-8", "DR-9",
     "DR-10", "DR-11", "DR-12", "DR-13", "DR-14", "DR-15", "DR-16", "DR-17",
-    "TURAYF", "HANIFAH",
+    # TURAYF and HANIFAH were dropped here too until 2026-08-17, when Will called them
+    # "valuable" standalone points rather than part of the DR cluster. They now live in the
+    # master CSV and ship in THC Waypoints.kml, and were removed from sources/NAJD VRPs.kmz
+    # in the same pass so they are not duplicated. Do NOT re-add them to this list without
+    # putting them back in the NAJD layer — they would otherwise vanish from the fleet.
 }
 
 _PM_RE = re.compile(r'<Placemark>(.*?)</Placemark>', re.S)
