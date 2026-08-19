@@ -95,34 +95,6 @@
    "region": "riyadh"
   },
   {
-   "n": "EotW Tour",
-   "c": [
-    [
-     24.76075192,
-     46.64780447
-    ],
-    [
-     24.73678482,
-     46.59047387
-    ],
-    [
-     24.68096324,
-     46.55741707
-    ],
-    [
-     24.57276294,
-     46.35228229
-    ],
-    [
-     24.71668158,
-     46.18810254
-    ]
-   ],
-   "cat": "city",
-   "dash": true,
-   "region": "riyadh"
-  },
-  {
    "n": "Tour Ext 1",
    "c": [
     [
@@ -543,7 +515,7 @@
    "region": "riyadh"
   },
   {
-   "n": "EotW via RYA-5 → B → Al Manjour (available, no approval)",
+   "n": "Edge of the World via RYA-5 → B → Al Manjour (available, no approval)",
    "c": [
     [
      24.760833,
@@ -727,7 +699,7 @@
    "region": "riyadh"
   },
   {
-   "n": "Al Manjour EotW",
+   "n": "Al Manjour Edge of the World",
    "lat": 24.71253105,
    "lon": 46.19641793,
    "cat": "prop",
@@ -1073,6 +1045,20 @@
    "n": "KAFD′ - proposed relocation (+0.5NM E)",
    "lat": 24.764361,
    "lon": 46.655806,
+   "cat": "prop",
+   "region": "riyadh"
+  },
+  {
+   "n": "Yasmeen Helipad (proposed refuel)",
+   "lat": 24.8232,
+   "lon": 46.6312,
+   "cat": "prop",
+   "region": "riyadh"
+  },
+  {
+   "n": "KAFD X Helipad (proposed refuel)",
+   "lat": 24.7713,
+   "lon": 46.6436,
    "cat": "prop",
    "region": "riyadh"
   }
