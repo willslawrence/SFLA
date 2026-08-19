@@ -17,6 +17,8 @@
  *   POST /  {action:"create", pin, records:[{name,areas,status,notes,extraFields}]}
  *                                -> bulk-create new SFLA rows (idempotent: skips names already present)
  *   POST /  {action:"setAreas", pin, records:[{name,areas:[...]}]}
+ *   POST /  {action:"setNotes", pin, records:[{name,notes}]}   -> Notes only,
+ *          no LastChecked/CheckCount side effects (see the block for why)
  *                                -> bulk-replace the Areas multi-select on existing pads
  */
 const CORS = {
@@ -140,6 +142,39 @@ export default {
     }
 
     // ---- SET AREAS on existing pads (bulk multi-select replace) ----
+    // ---- SET NOTES only (no check-history side effects) ----
+    //
+    // The plain status POST also stamps LastChecked=today and increments CheckCount,
+    // which is right for a pilot's tap but wrong for recording WHY a pad was already
+    // rejected: it would make a 24 Jul mark look like a fresh check. This patches the
+    // Notes field alone, so an after-the-fact reason can be added without falsifying
+    // the pad's check history. Same shape as setAreas.
+    if (body.action === "setNotes") {
+      const records = Array.isArray(body.records) ? body.records : [];
+      if (!records.length) return json({ error: "no records" }, 400);
+
+      const byName = {};
+      for (const r of await airtableAll(BASE, TABLE, H)) {
+        const n = (r.fields || {})["SFLA Name"];
+        if (n) byName[n] = r.id;
+      }
+      const updated = [], notfound = [], failed = [];
+      for (const rec of records) {
+        const name = rec && rec.name;
+        const notes = rec && typeof rec.notes === "string" ? rec.notes : null;
+        if (!name || notes === null) { failed.push({ name: name || null, error: "bad record" }); continue; }
+        const id = byName[name];
+        if (!id) { notfound.push(name); continue; }
+        const resp = await fetch(`https://api.airtable.com/v0/${BASE}/${TABLE_ENC}/${id}`, {
+          method: "PATCH", headers: H,
+          body: JSON.stringify({ fields: { Notes: notes } }),
+        });
+        if (!resp.ok) { failed.push({ name, error: await resp.text() }); continue; }
+        updated.push(name);
+      }
+      return json({ ok: failed.length === 0, updated, notfound, failed });
+    }
+
     if (body.action === "setAreas") {
       const records = Array.isArray(body.records) ? body.records : [];
       if (!records.length) return json({ error: "no records" }, 400);
