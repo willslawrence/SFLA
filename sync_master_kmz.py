@@ -106,8 +106,13 @@ if pending:
     explained   = [n for n in pending if unsuitable_notes.get(n)]
     unexplained = [n for n in pending if not unsuitable_notes.get(n)]
     if explained:
+        # Truncate: a decision note can run to a sentence or two, and the whole point
+        # of this block is that it stays readable at a glance.
+        def brief(t, w=34):
+            t = " ".join(t.split())
+            return t if len(t) <= w else t[:w - 1].rstrip() + "\u2026"
         print("    reason recorded, nothing to do: "
-              + ", ".join(f"{n} ({unsuitable_notes[n]})" for n in explained))
+              + ", ".join(f"{n} ({brief(unsuitable_notes[n])})" for n in explained))
     if unexplained:
         print("    no reason recorded — worth a look, could be a mis-tap: "
               + ", ".join(unexplained))
