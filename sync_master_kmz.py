@@ -52,11 +52,13 @@ restricted = mr.group(0) if mr else ""
 # option. Retired ones keep their own hidden "do not re-survey" folder below.
 data = json.load(open(os.path.join(HERE, "data.geojson")))
 folders, area_counts, suppressed = [], {}, set()
+unsuitable_notes = {}
 for area in AREA_ORDER:
     pms = []
     for f in data["features"]:
         if f["properties"].get("status") == "Unsuitable":
             suppressed.add(f["properties"]["name"])
+            unsuitable_notes[f["properties"]["name"]] = (f["properties"].get("notes") or "").strip()
             continue
         if area in (f["properties"].get("areas") or []):
             ring = [(x, y) for x, y in f["geometry"]["coordinates"][0]]
@@ -82,12 +84,31 @@ with zipfile.ZipFile(KMZ, "w", zipfile.ZIP_DEFLATED) as zf:
 
 print(f"master KMZ rebuilt: {doc.count('<Placemark>')} placemarks "
       f"(areas {area_counts}, restricted {restricted.count('<Placemark>')}, retired {len(rpms)})")
+# Unsuitable pads that are not ALSO flagged retired in geometry.json.
+#
+# READ THIS BEFORE TREATING THE LIST BELOW AS A TASK. Unsuitable pads stay in
+# Airtable, stay Unsuitable and stay on the list — that is the whole point, so a
+# later survey cannot re-create a pad that was already rejected. The `retired`
+# flag is NOT deletion and not a tidier state: it only decides whether a pad
+# draws on the PUBLIC map, while staying in this KMZ as survey memory. Leaving a
+# pad unflagged is a perfectly valid resting state and needs no action.
+#
+# The one case genuinely worth a look is a pad marked Unsuitable with NO reason
+# recorded. A tap on the tracker is one action with no confirmation, so an
+# unexplained mark is a *report*, not a verdict — it could be a mis-tap. A pad
+# carrying a reason ("Building now", "Private houses") is a verdict and is done.
+# So the two are printed separately; only the unexplained group is a prompt.
+# Standing review: work/active/SFLA Unsuitable Review.md in the vault.
 pending = sorted(suppressed - set(k for k, v in ret))
 print(f"  {len(suppressed)} Unsuitable pads kept out of the area folders "
-      f"({len(pending)} not yet flagged retired)")
+      f"({len(ret)} also flagged retired, {len(pending)} not — which is fine)")
 if pending:
-    # Marked Unsuitable by a pilot but not yet reviewed. Either confirm and set
-    # retired: true in geometry.json, or tap it back to Suitable on the tracker
-    # if it was a mis-tap. See work/active/SFLA Unsuitable Review.md in the vault.
-    print("  awaiting Will's review: " + ", ".join(pending))
+    explained   = [n for n in pending if unsuitable_notes.get(n)]
+    unexplained = [n for n in pending if not unsuitable_notes.get(n)]
+    if explained:
+        print("    reason recorded, nothing to do: "
+              + ", ".join(f"{n} ({unsuitable_notes[n]})" for n in explained))
+    if unexplained:
+        print("    no reason recorded — worth a look, could be a mis-tap: "
+              + ", ".join(unexplained))
 subprocess.run(["python3", os.path.join(HERE, "build_foreflight_pack.py")], check=True)
