@@ -80,7 +80,17 @@ def kml_from_kmz(path):
 # a white LabelStyle so ForeFlight draws the name on the map. Icons are the google KML
 # icon set (mapfiles/kml/...) which ForeFlight renders; colour is KML aabbggrr and tints
 # the glyph. Category comes from the "Area - Category" description. Tune freely.
-_ICON_BASE = "http://maps.google.com/mapfiles/kml/"
+# Icon artwork. Google's KML shape PNGs were referenced by absolute http:// URL until
+# 2026-08-23, when Will reported hospitals drawing as a plain RED TRIANGLE instead of the
+# H — i.e. the tint was applied but the artwork never loaded. The KML was correct; the
+# remote fetch is what ForeFlight does not do. (Banked as an untested risk on 2026-08-13 —
+# "the icons are fetched from maps.google.com, not packaged in the zip"; this is that bill.)
+# The PNGs now ship INSIDE the pack under icons/ and are referenced relative to the KML,
+# which lives one level down in layers/ or navdata/.
+# Flip ICONS_PACKAGED back to False to restore the old remote hrefs.
+ICONS_PACKAGED = True
+_ICON_DIR = os.path.join(HERE, "icons")
+_ICON_BASE = "../icons/" if ICONS_PACKAGED else "http://maps.google.com/mapfiles/kml/"
 _ICON_SCALE = "0.6"                                    # ~half the old pushpin; adjust to taste
 # The 12-type scheme adopted by Will 2026-08-13. Types 1-9 are Part 121's published
 # vocabulary, lifted verbatim from FOB 0326_01 ("THC New User Waypoints Database",
@@ -181,7 +191,8 @@ def _style_block(sid, href, color):
         '<Icon><href>%s%s</href></Icon>'
         '<hotSpot x="0.5" y="0.5" xunits="fraction" yunits="fraction"/></IconStyle>'
         '<LabelStyle><color>ffffffff</color><scale>1</scale></LabelStyle></Style>'
-        % (sid, color, _ICON_SCALE, _ICON_BASE, href))
+        % (sid, color, _ICON_SCALE, _ICON_BASE,
+           os.path.basename(href) if ICONS_PACKAGED else href))
 
 
 def drop_waypoints(kml):
@@ -364,19 +375,29 @@ def training_kml(json_path):
 HOSPITALS_IN_NAVDATA = True
 _HOSP_RE = re.compile(r"<Placemark>(?:(?!</Placemark>).)*?- Hospital LZ</description>"
                       r"(?:(?!</Placemark>).)*?</Placemark>", re.S)
+_STYLE_RE = re.compile(r"<Style id=.*?</Style>", re.S)
 
 
 def split_hospitals(kml):
-    """Return (kml_without_hospitals_or_unchanged, hospitals_only_kml, count).
+    """Return (kml_for_navdata, hospitals_layer_kml, count).
 
-    Matches on the '<Area> - Hospital LZ' description written by the vault's
-    build-foreflight-csv.py — that is where the master CSV's Category lands.
+    Builds the layer document from scratch — header + the <Style> blocks it needs +
+    the hospital placemarks + its own <name>.
+
+    ⚠️ Do NOT build it by slicing the source up to the first <Placemark>. That was the
+    2026-08-23 bug: the source groups placemarks into per-Area <Folder> elements, so the
+    slice captured an opening "<Folder><name>Abha</name>" that nothing ever closed. The
+    KML was malformed, and ForeFlight does not report a bad layer — it just renders
+    NOTHING, which reads exactly like "the feature didn't work".
     """
     hosp = _HOSP_RE.findall(kml)
     if not hosp:
         return kml, None, 0
-    head = kml[:kml.index("<Placemark>")]
-    layer = head + "\n".join(hosp) + "\n</Document></kml>\n"
+    styles = "\n".join(_STYLE_RE.findall(kml))
+    layer = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+             '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
+             '<name>THC Hospitals</name>\n'
+             + styles + "\n" + "\n".join(hosp) + "\n</Document></kml>\n")
     rest = kml if HOSPITALS_IN_NAVDATA else _HOSP_RE.sub("", kml)
     return rest, layer, len(hosp)
 
@@ -443,6 +464,18 @@ def build():
     root = os.path.join(tmp, PACK_NAME)
     os.makedirs(os.path.join(root, "layers"))
     os.makedirs(os.path.join(root, "navdata"))
+    if ICONS_PACKAGED:
+        if not os.path.isdir(_ICON_DIR):
+            print(f"  WARN: {_ICON_DIR} missing — icons will not render")
+        else:
+            os.makedirs(os.path.join(root, "icons"))
+            n_ic = 0
+            for ic in sorted(os.listdir(_ICON_DIR)):
+                if ic.lower().endswith(".png"):
+                    shutil.copyfile(os.path.join(_ICON_DIR, ic),
+                                    os.path.join(root, "icons", ic))
+                    n_ic += 1
+            print(f"  packaged {n_ic} icons -> icons/ (hrefs are {_ICON_BASE}*)")
 
     # manifest
     with open(os.path.join(root, "manifest.json"), "w") as f:
