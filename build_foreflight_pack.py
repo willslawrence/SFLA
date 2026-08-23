@@ -373,6 +373,7 @@ def training_kml(json_path):
 # If it does, set HOSPITALS_IN_NAVDATA = False (toggle survives, search does not) rather than
 # dropping the layer. Prove it on an iPad before this reaches the fleet.
 HOSPITALS_IN_NAVDATA = True
+HOSPITAL_LAYER_DIAGNOSTIC = True   # temporary — see split_hospitals()
 _HOSP_RE = re.compile(r"<Placemark>(?:(?!</Placemark>).)*?- Hospital LZ</description>"
                       r"(?:(?!</Placemark>).)*?</Placemark>", re.S)
 _STYLE_RE = re.compile(r"<Style id=.*?</Style>", re.S)
@@ -394,6 +395,16 @@ def split_hospitals(kml):
     if not hosp:
         return kml, None, 0
     styles = "\n".join(_STYLE_RE.findall(kml))
+    # DIAGNOSTIC (2026-08-23 — delete once answered): make the LAYER's hospital icon a
+    # loud green oversized marker so it cannot be confused with navdata's red. navdata
+    # points may render as ForeFlight's own user-waypoint symbol and ignore IconStyle
+    # entirely; the layer is the only place custom artwork could take effect. One import
+    # then says which of the two is drawing what.
+    if HOSPITAL_LAYER_DIAGNOSTIC:
+        styles = styles.replace(
+            '<Style id="thc_hospital_lz"><IconStyle><color>ff0000ff</color><scale>0.6</scale>',
+            '<Style id="thc_hospital_lz"><IconStyle><color>ff00ff00</color><scale>1.6</scale>')
+
     layer = ('<?xml version="1.0" encoding="UTF-8"?>\n'
              '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
              '<name>THC Hospitals</name>\n'
