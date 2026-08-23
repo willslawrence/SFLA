@@ -88,7 +88,7 @@ def kml_from_kmz(path):
 # The PNGs now ship INSIDE the pack under icons/ and are referenced relative to the KML,
 # which lives one level down in layers/ or navdata/.
 # Flip ICONS_PACKAGED back to False to restore the old remote hrefs.
-ICONS_PACKAGED = True
+ICONS_PACKAGED = False
 _ICON_DIR = os.path.join(HERE, "icons")
 _ICON_BASE = "../icons/" if ICONS_PACKAGED else "http://maps.google.com/mapfiles/kml/"
 _ICON_SCALE = "0.6"                                    # ~half the old pushpin; adjust to taste
@@ -363,17 +363,17 @@ def training_kml(json_path):
     return layer, navdata, names, len(routes), len(pts)
 
 
-# Hospitals ride in BOTH navdata and layers, on purpose (2026-08-23, Will).
-#   navdata/ -> user waypoints: searchable, enterable in a flight plan / Direct-To. This is
-#               what matters on an EMS tasking and must never be lost.
-#   layers/  -> a map layer gets its OWN toggle in ForeFlight's layer list, which is the only
-#               way to hide hospitals. navdata is governed by ONE "User Waypoints" switch that
-#               would take all 281 points with it.
-# ⚠️ UNVERIFIED ON DEVICE: shipping a point in both may draw TWO pins when the layer is on.
-# If it does, set HOSPITALS_IN_NAVDATA = False (toggle survives, search does not) rather than
-# dropping the layer. Prove it on an iPad before this reaches the fleet.
-HOSPITALS_IN_NAVDATA = True
-HOSPITAL_LAYER_DIAGNOSTIC = True   # temporary — see split_hospitals()
+# Hospitals live ONLY in layers/, not navdata (settled on device 2026-08-23).
+# The toggle is the whole point — Will: "most of the time we don't need to see the
+# hospitals, but for some missions we do." navdata is governed by one global "User
+# Waypoints" switch, so a point that is ALSO in navdata keeps drawing after the layer
+# is switched off. Shipping both does not give you both features; it gives you a dead
+# toggle and a doubled pin. It is either/or.
+# COST: layer placemarks are not searchable and cannot be typed into a flight plan or
+# Direct-To. Pilots who need that import Files/Waypoints/THC ForeFlight Waypoints.csv
+# separately (ForeFlight's own User Waypoints importer) — the Tier-2 fallback that
+# already exists. See TODOs/Maintain ForeFlight Waypoints & Routes KMZ.md.
+HOSPITALS_IN_NAVDATA = False
 _HOSP_RE = re.compile(r"<Placemark>(?:(?!</Placemark>).)*?- Hospital LZ</description>"
                       r"(?:(?!</Placemark>).)*?</Placemark>", re.S)
 _STYLE_RE = re.compile(r"<Style id=.*?</Style>", re.S)
@@ -395,15 +395,6 @@ def split_hospitals(kml):
     if not hosp:
         return kml, None, 0
     styles = "\n".join(_STYLE_RE.findall(kml))
-    # DIAGNOSTIC (2026-08-23 — delete once answered): make the LAYER's hospital icon a
-    # loud green oversized marker so it cannot be confused with navdata's red. navdata
-    # points may render as ForeFlight's own user-waypoint symbol and ignore IconStyle
-    # entirely; the layer is the only place custom artwork could take effect. One import
-    # then says which of the two is drawing what.
-    if HOSPITAL_LAYER_DIAGNOSTIC:
-        styles = styles.replace(
-            '<Style id="thc_hospital_lz"><IconStyle><color>ff0000ff</color><scale>0.6</scale>',
-            '<Style id="thc_hospital_lz"><IconStyle><color>ff00ff00</color><scale>1.6</scale>')
 
     layer = ('<?xml version="1.0" encoding="UTF-8"?>\n'
              '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
