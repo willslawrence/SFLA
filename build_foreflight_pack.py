@@ -352,6 +352,35 @@ def training_kml(json_path):
     return layer, navdata, names, len(routes), len(pts)
 
 
+# Hospitals ride in BOTH navdata and layers, on purpose (2026-08-23, Will).
+#   navdata/ -> user waypoints: searchable, enterable in a flight plan / Direct-To. This is
+#               what matters on an EMS tasking and must never be lost.
+#   layers/  -> a map layer gets its OWN toggle in ForeFlight's layer list, which is the only
+#               way to hide hospitals. navdata is governed by ONE "User Waypoints" switch that
+#               would take all 281 points with it.
+# ⚠️ UNVERIFIED ON DEVICE: shipping a point in both may draw TWO pins when the layer is on.
+# If it does, set HOSPITALS_IN_NAVDATA = False (toggle survives, search does not) rather than
+# dropping the layer. Prove it on an iPad before this reaches the fleet.
+HOSPITALS_IN_NAVDATA = True
+_HOSP_RE = re.compile(r"<Placemark>(?:(?!</Placemark>).)*?- Hospital LZ</description>"
+                      r"(?:(?!</Placemark>).)*?</Placemark>", re.S)
+
+
+def split_hospitals(kml):
+    """Return (kml_without_hospitals_or_unchanged, hospitals_only_kml, count).
+
+    Matches on the '<Area> - Hospital LZ' description written by the vault's
+    build-foreflight-csv.py — that is where the master CSV's Category lands.
+    """
+    hosp = _HOSP_RE.findall(kml)
+    if not hosp:
+        return kml, None, 0
+    head = kml[:kml.index("<Placemark>")]
+    layer = head + "\n".join(hosp) + "\n</Document></kml>\n"
+    rest = kml if HOSPITALS_IN_NAVDATA else _HOSP_RE.sub("", kml)
+    return rest, layer, len(hosp)
+
+
 def publish_release(version):
     """Copy the freshly built pack to a version-stamped filename and return
     (release_zip_path, import_link).
@@ -492,6 +521,12 @@ def build():
             print(f"  DROP_WAYPOINTS: {len(dropped)} removed, "
                   f"{len(inert)} already absent from the source (guarding against re-add)")
             kml, mapping = style_waypoint_labels(kml)
+            kml, hosp_kml, n_hosp = split_hospitals(kml)
+            if hosp_kml:
+                with open(os.path.join(root, "layers", "THC Hospitals.kml"), "w") as hf:
+                    hf.write(hosp_kml)
+                print(f"  hospitals -> layers/THC Hospitals.kml ({n_hosp} points, "
+                      f"{'also kept' if HOSPITALS_IN_NAVDATA else 'REMOVED from'} navdata)")
             total = kml.count('styleUrl>#thc_')
             print(f"  labeled {total} waypoints ({len(mapping)} VRPs shortened to codes):")
             for name, code, area in mapping:
