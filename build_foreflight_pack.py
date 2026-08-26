@@ -76,6 +76,11 @@ ROUTE_CATS = {                                   # cat -> (KML aabbggrr colour, 
 # light basemap. White on a VFR sectional is nearly invisible without it, and ForeFlight's
 # KML LineStyle has no outline/dash property to lean on instead.
 ROUTE_CASING = {"city": ("96000000", 6)}         # 60%-opacity black, 2x the line width
+# Not every route in a category is for pilots. The "city" cat also holds Boutique Ext 3 and
+# the two Tour Ext segments, which are commercial/planning artefacts rather than something a
+# pilot should see on the map — only the full City Tour loop ships. (Will, 2026-08-26)
+# Cat not listed here = every route in it ships, which is the case for appr/na/pub.
+ROUTE_SHIP_ONLY = {"city": {"City Tour"}}
 
 
 def kml_from_kmz(path):
@@ -292,10 +297,16 @@ def routes_layer_kml(json_path):
         '<PolyStyle><fill>0</fill></PolyStyle></Style>' % (cat, col, w)
         for cat, (col, w) in ROUTE_CASING.items()
     )
-    placemarks, listing = [], []
+    placemarks, listing, withheld = [], [], []
     for L in data.get("lines", []):
         cat = L.get("cat")
         if cat not in ROUTE_CATS:
+            continue
+        # A withheld route is reported, never dropped quietly — the whole reason the tour
+        # was missing for months is that an unrecognised category failed silently.
+        only = ROUTE_SHIP_ONLY.get(cat)
+        if only is not None and L.get("n") not in only:
+            withheld.append(L.get("n", ""))
             continue
         coords = " ".join("%s,%s,0" % (pt[1], pt[0]) for pt in L.get("c", []))
         if not coords:
@@ -316,7 +327,7 @@ def routes_layer_kml(json_path):
     kml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>THC Routes</name>\n'
            + styles + "\n" + "\n".join(placemarks) + "\n</Document></kml>\n")
-    return kml, listing
+    return kml, listing, withheld
 
 
 # Training-area styling. KML colours are aabbggrr, NOT rrggbb.
@@ -512,13 +523,15 @@ def build():
     routes_src = ROUTES_JSON if os.path.exists(ROUTES_JSON) else ROUTES_JSON_FALLBACK
     if os.path.exists(routes_src):
         shutil.copyfile(routes_src, ROUTES_JSON_FALLBACK)   # keep a committed provenance copy
-        routes_kml, routes_listing = routes_layer_kml(routes_src)
+        routes_kml, routes_listing, routes_withheld = routes_layer_kml(routes_src)
         with open(os.path.join(root, "layers", "THC Routes.kml"), "w") as f:
             f.write(routes_kml)
         counts = {c: sum(1 for k, _ in routes_listing if k == c) for c in ROUTE_CATS}
         print(f"  routes layer: {counts['appr']} approved (green) + {counts['na']} not-approved "
               f"(red) + {counts['pub']} published (azure) + {counts['city']} tour (white) "
               f"[source: {os.path.basename(routes_src)}]")
+        if routes_withheld:
+            print(f"    withheld by ROUTE_SHIP_ONLY: {', '.join(routes_withheld)}")
     else:
         print(f"  WARN: routes source not found ({routes_src}) — routes layer skipped")
 
