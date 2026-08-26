@@ -66,7 +66,16 @@ ROUTE_CATS = {                                   # cat -> (KML aabbggrr colour, 
     # <color> and <width> — there is no dash/stipple property, so this renders SOLID in
     # ForeFlight. The dashed treatment exists only on the HTML map. (2026-08-10)
     "pub":  ("ffeda600", 3),                     # published, not approved -> azure
+    # Tour product routes (City Tour + its extensions, Boutique Ext 3) — WHITE, so they
+    # read at a glance as "not an official route" against the green/red/azure regulatory
+    # set. Every other colour here means something about GACA's position; white is
+    # deliberately outside that vocabulary. (Will, 2026-08-26)
+    "city": ("ffffffff", 3),                     # tour product, not approved -> white
 }
+# Categories drawn with a wider dark casing underneath, so a pale line stays visible on a
+# light basemap. White on a VFR sectional is nearly invisible without it, and ForeFlight's
+# KML LineStyle has no outline/dash property to lean on instead.
+ROUTE_CASING = {"city": ("96000000", 6)}         # 60%-opacity black, 2x the line width
 
 
 def kml_from_kmz(path):
@@ -278,6 +287,10 @@ def routes_layer_kml(json_path):
         '<Style id="rte_%s"><LineStyle><color>%s</color><width>%d</width></LineStyle>'
         '<PolyStyle><fill>0</fill></PolyStyle></Style>' % (cat, col, w)
         for cat, (col, w) in ROUTE_CATS.items()
+    ) + "".join(
+        '<Style id="rtecase_%s"><LineStyle><color>%s</color><width>%d</width></LineStyle>'
+        '<PolyStyle><fill>0</fill></PolyStyle></Style>' % (cat, col, w)
+        for cat, (col, w) in ROUTE_CASING.items()
     )
     placemarks, listing = [], []
     for L in data.get("lines", []):
@@ -287,10 +300,18 @@ def routes_layer_kml(json_path):
         coords = " ".join("%s,%s,0" % (pt[1], pt[0]) for pt in L.get("c", []))
         if not coords:
             continue
+        name = _xml_escape(str(L.get("n", "")))
+        # Casing first so the coloured line draws over it. It is unnamed, which keeps it
+        # out of ForeFlight's layer listing — one entry per route, not two.
+        if cat in ROUTE_CASING:
+            placemarks.append(
+                '<Placemark><styleUrl>#rtecase_%s</styleUrl>'
+                '<LineString><tessellate>1</tessellate><coordinates>%s</coordinates></LineString></Placemark>'
+                % (cat, coords))
         placemarks.append(
             '<Placemark><name>%s</name><styleUrl>#rte_%s</styleUrl>'
             '<LineString><tessellate>1</tessellate><coordinates>%s</coordinates></LineString></Placemark>'
-            % (_xml_escape(str(L.get("n", ""))), cat, coords))
+            % (name, cat, coords))
         listing.append((cat, L.get("n", "")))
     kml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>THC Routes</name>\n'
@@ -494,9 +515,9 @@ def build():
         routes_kml, routes_listing = routes_layer_kml(routes_src)
         with open(os.path.join(root, "layers", "THC Routes.kml"), "w") as f:
             f.write(routes_kml)
-        appr = sum(1 for c, _ in routes_listing if c == "appr")
-        na = sum(1 for c, _ in routes_listing if c == "na")
-        print(f"  routes layer: {appr} approved (green) + {na} not-approved (red) "
+        counts = {c: sum(1 for k, _ in routes_listing if k == c) for c in ROUTE_CATS}
+        print(f"  routes layer: {counts['appr']} approved (green) + {counts['na']} not-approved "
+              f"(red) + {counts['pub']} published (azure) + {counts['city']} tour (white) "
               f"[source: {os.path.basename(routes_src)}]")
     else:
         print(f"  WARN: routes source not found ({routes_src}) — routes layer skipped")
