@@ -8,7 +8,7 @@ import json, os, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 cfg = json.load(open(os.path.join(HERE, "config.json")))
-WORKER = cfg.get("workerUrl", "https://sfla-write.thehelicopter.workers.dev")
+WORKER = cfg.get("workerUrl", "https://sfla-write.willslawrence.workers.dev")
 
 # live status for every SFLA, straight from the Worker (no token in this client).
 # Cloudflare 403s the default Python-urllib UA, so present a normal one.

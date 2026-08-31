@@ -21,6 +21,13 @@
  *          no LastChecked/CheckCount side effects (see the block for why)
  *                                -> bulk-replace the Areas multi-select on existing pads
  */
+// Airtable free tier = 1,000 API calls/month for the whole workspace, and one GET here
+// costs FIVE of them (489 pads / pageSize 100). index.html and map.html both fetch live
+// status on every page load, so ~200 page loads a month exhausts the quota — which is
+// exactly what happened by 2026-08-31. 15 min of edge cache turns a day of pilot traffic
+// into a handful of calls; writes purge it, so a pilot still sees their own tap land.
+const CACHE_TTL = 900;  // seconds; purged on every successful write
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -28,17 +35,83 @@ const CORS = {
 };
 
 // fetch every record from an Airtable table (handles pagination), optional query string
+class UpstreamError extends Error {
+  constructor(msg, status) { super(msg); this.status = status; }
+}
+
 async function airtableAll(BASE, table, H, query = "") {
   const out = [];
   let url = `https://api.airtable.com/v0/${BASE}/${encodeURIComponent(table)}?pageSize=100${query}`;
   while (url) {
-    const d = await (await fetch(url, { headers: H })).json();
+    // Fail loud. This used to swallow a 401/404 and return {} — the monthly report
+    // then rendered an empty month instead of erroring. (2026-08-31)
+    const res = await fetch(url, { headers: H });
+    if (!res.ok) {
+      const body = (await res.text()).slice(0, 300);
+      throw new UpstreamError(`Airtable ${res.status} on "${table}": ${body}`, res.status);
+    }
+    const d = await res.json();
     out.push(...(d.records || []));
     url = d.offset
       ? `https://api.airtable.com/v0/${BASE}/${encodeURIComponent(table)}?pageSize=100${query}&offset=${d.offset}`
       : null;
   }
   return out;
+}
+
+
+// Drop the cached read set after a write so pilots see their own tap immediately.
+async function purgeReadCache(req) {
+  const cache = caches.default;
+  const base = new URL(req.url);
+  base.search = "";
+  await cache.delete(new Request(base.toString(), { method: "GET" }));
+}
+
+async function handleGet(req, BASE, TABLE, H) {
+  const url = new URL(req.url);
+
+    // change-log endpoint for the monthly report: ?log=1&from=ISO&to=ISO
+    if (url.searchParams.get("log")) {
+      const from = url.searchParams.get("from"), to = url.searchParams.get("to");
+      let q = "";
+      if (from && to) {
+        const f = `AND(IS_AFTER(Timestamp,'${from}'),IS_BEFORE(Timestamp,'${to}'))`;
+        q = `&filterByFormula=${encodeURIComponent(f)}`;
+      }
+      const recs = [
+        ...(await airtableAll(BASE, "Change Log", H, q)),
+        ...(await airtableAll(BASE, "All Change Log", H, q)),
+      ];
+      const changeLog = recs.map((r) => {
+        const f = r.fields || {};
+        return {
+          name: f.Name || "",
+          timestamp: f.Timestamp || "",
+          prev: f.PreviousStatus || "",
+          new: f.NewStatus || "",
+          notes: f.Notes || "",
+        };
+      });
+      return json({ ok: true, changeLog });
+    }
+
+    // default: current status for every SFLA (map + report)
+    const recs = await airtableAll(BASE, TABLE, H);
+    const sites = {};
+    for (const r of recs) {
+      const f = r.fields || {};
+      const n = f["SFLA Name"];
+      if (!n) continue;
+      sites[n] = {
+        status: f.Status || "New SFLA",
+        lastChecked: f.LastChecked || null,
+        checkCount: f.CheckCount || 0,
+        notes: f.Notes || "",
+        areas: f.Areas || [],
+      };
+    }
+    return json({ ok: true, sites });
 }
 
 export default {
@@ -49,50 +122,26 @@ export default {
     const H = { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
 
     // ---- READ (public) ----
+    // Edge-cached for CACHE_TTL. Airtable's free plan caps API calls per month and the
+    // quota was exhausted on 2026-08-31, which took out the monthly report AND the map.
+    // Every uncached map load used to cost one Airtable call per pad page; now a burst of
+    // pilots costs one. Writes purge the cache below, so a status tap still shows up at once.
     if (req.method === "GET") {
-      const url = new URL(req.url);
-
-      // change-log endpoint for the monthly report: ?log=1&from=ISO&to=ISO
-      if (url.searchParams.get("log")) {
-        const from = url.searchParams.get("from"), to = url.searchParams.get("to");
-        let q = "";
-        if (from && to) {
-          const f = `AND(IS_AFTER(Timestamp,'${from}'),IS_BEFORE(Timestamp,'${to}'))`;
-          q = `&filterByFormula=${encodeURIComponent(f)}`;
-        }
-        const recs = [
-          ...(await airtableAll(BASE, "Change Log", H, q)),
-          ...(await airtableAll(BASE, "All Change Log", H, q)),
-        ];
-        const changeLog = recs.map((r) => {
-          const f = r.fields || {};
-          return {
-            name: f.Name || "",
-            timestamp: f.Timestamp || "",
-            prev: f.PreviousStatus || "",
-            new: f.NewStatus || "",
-            notes: f.Notes || "",
-          };
-        });
-        return json({ ok: true, changeLog });
+      const cache = caches.default;
+      const cacheKey = new Request(new URL(req.url).toString(), { method: "GET" });
+      const hit = await cache.match(cacheKey);
+      if (hit) return hit;
+      try {
+        const res = await handleGet(req, BASE, TABLE, H);
+        const cached = new Response(res.body, res);
+        cached.headers.set("Cache-Control", `public, s-maxage=${CACHE_TTL}`);
+        ctx.waitUntil(cache.put(cacheKey, cached.clone()));
+        return cached;
+      } catch (e) {
+        // never cache a failure
+        const st = e instanceof UpstreamError ? 502 : 500;
+        return json({ ok: false, error: String(e && e.message || e) }, st);
       }
-
-      // default: current status for every SFLA (map + report)
-      const recs = await airtableAll(BASE, TABLE, H);
-      const sites = {};
-      for (const r of recs) {
-        const f = r.fields || {};
-        const n = f["SFLA Name"];
-        if (!n) continue;
-        sites[n] = {
-          status: f.Status || "New SFLA",
-          lastChecked: f.LastChecked || null,
-          checkCount: f.CheckCount || 0,
-          notes: f.Notes || "",
-          areas: f.Areas || [],
-        };
-      }
-      return json({ ok: true, sites });
     }
 
     // ---- WRITE (PIN-gated) ----
@@ -138,6 +187,7 @@ export default {
         const d = await resp.json();
         for (const r of (d.records || [])) created.push((r.fields || {})["SFLA Name"]);
       }
+      ctx.waitUntil(purgeReadCache(req));
       return json({ ok: failed.length === 0, created, skipped, failed });
     }
 
@@ -172,6 +222,7 @@ export default {
         if (!resp.ok) { failed.push({ name, error: await resp.text() }); continue; }
         updated.push(name);
       }
+      ctx.waitUntil(purgeReadCache(req));
       return json({ ok: failed.length === 0, updated, notfound, failed });
     }
 
@@ -197,6 +248,7 @@ export default {
         if (!resp.ok) { failed.push({ name, error: await resp.text() }); continue; }
         updated.push(name);
       }
+      ctx.waitUntil(purgeReadCache(req));
       return json({ ok: failed.length === 0, updated, notfound, failed });
     }
 
@@ -237,6 +289,7 @@ export default {
       if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(logWrite); else await logWrite;
     }
 
+    ctx.waitUntil(purgeReadCache(req));
     return json({ ok: true, name, status, lastChecked: today, checkCount: cc });
   },
 };

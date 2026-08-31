@@ -29,7 +29,7 @@ The create endpoint skips names that already exist, so re-running is harmless.
 import json, os, subprocess, sys, urllib.request, urllib.error
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-WORKER = "https://sfla-write.thehelicopter.workers.dev/"
+WORKER = "https://sfla-write.willslawrence.workers.dev/"
 KEYCHAIN_SERVICE = "thc-sfla-write-pin"
 
 

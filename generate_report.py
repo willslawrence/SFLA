@@ -20,7 +20,11 @@ import urllib.request, urllib.parse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOGO_PATH = os.path.join(HERE, 'thc_logo.png')
-WORKER = 'https://sfla-write.thehelicopter.workers.dev'  # reads come from the Worker; no Airtable token in this client
+# reads come from the Worker (token held server-side); URL lives in config.json so the
+# workers.dev subdomain is changed in ONE place. (2026-08-31: the old
+# 'thehelicopter' subdomain went NXDOMAIN and this silently produced no report.)
+_CFG = json.load(open(os.path.join(HERE, 'config.json')))
+WORKER = _CFG.get('workerUrl', 'https://sfla-write.willslawrence.workers.dev')
 OUT_DIR = ('/Users/willlawrence/Library/CloudStorage/OneDrive-TheHelicopterCompany/'
            'H125 Pilots - Documents/Missions/Riyadh UAM/SFLA Monthly Reports')
 

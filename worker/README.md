@@ -1,6 +1,6 @@
 # SFLA write proxy (Cloudflare Worker)
 
-Deployed as **`sfla-write`** → `https://sfla-write.thehelicopter.workers.dev`
+Deployed as **`sfla-write`** → `https://sfla-write.willslawrence.workers.dev`
 
 Holds the Airtable token server-side so nothing client-side needs one: the map, the
 monthly GACA report and `build.py` all read through this.

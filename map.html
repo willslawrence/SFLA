@@ -420,7 +420,7 @@
     const AIRTABLE_BASE = 'appBJW3FvPw5c659F';
     const AIRTABLE_TABLE = 'SFLA Sites v2';
     // No Airtable token in the browser. Reads = baked data.geojson; writes = PIN-gated Cloudflare Worker.
-    const WORKER_URL = 'https://sfla-write.thehelicopter.workers.dev';
+    const WORKER_URL = 'https://sfla-write.willslawrence.workers.dev';
     function getPin(){ let p=localStorage.getItem('sflaPin'); if(!p){ p=prompt('Enter the THC SFLA update PIN — this is the same as the company iPad passcode:'); if(p) localStorage.setItem('sflaPin',p);} return p; }
     const AREA_TAGS = {uam:'UAM', malham:'Malham', 'city-tour':'City Tour', najd:'NAJD'};
     const AREA_TAG = AREA_TAGS[new URLSearchParams(location.search).get('area')] || null;
