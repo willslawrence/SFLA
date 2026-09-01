@@ -79,10 +79,20 @@ async function handleGet(req, BASE, TABLE, H) {
         const f = `AND(IS_AFTER(Timestamp,'${from}'),IS_BEFORE(Timestamp,'${to}'))`;
         q = `&filterByFormula=${encodeURIComponent(f)}`;
       }
-      const recs = [
-        ...(await airtableAll(BASE, "Change Log", H, q)),
-        ...(await airtableAll(BASE, "All Change Log", H, q)),
-      ];
+      // "Change Log" is required. "All Change Log" is a legacy archive table from the v1
+      // merge and no longer exists on the base (403 INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND,
+      // confirmed 2026-09-01) — a missing OPTIONAL table must not fail the whole report, but
+      // a missing required one must. Before the fail-loud patch both were swallowed, so this
+      // is the behaviour every previous monthly report already ran on.
+      const recs = [...(await airtableAll(BASE, "Change Log", H, q))];
+      for (const optional of ["All Change Log"]) {
+        try {
+          recs.push(...(await airtableAll(BASE, optional, H, q)));
+        } catch (e) {
+          if (!(e instanceof UpstreamError) || ![403, 404].includes(e.status)) throw e;
+          console.log(`optional log table "${optional}" absent — skipped`);
+        }
+      }
       const changeLog = recs.map((r) => {
         const f = r.fields || {};
         return {
