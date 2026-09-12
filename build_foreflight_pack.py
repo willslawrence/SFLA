@@ -15,7 +15,7 @@ The repo's THC_SFLA_master.kmz is the source of the area layer (kept current by 
 vault splice pipeline). Waypoint sources live in ./sources/ (copied from the vault).
 """
 import os
-import shutil, time, json, zipfile, tempfile, re
+import shutil, time, json, zipfile, tempfile, re, math
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MASTER_KMZ = os.path.join(HERE, "THC_SFLA_master.kmz")
@@ -82,6 +82,59 @@ ROUTE_CASING = {"city": ("96000000", 6)}         # 60%-opacity black, 2x the lin
 # pilot should see on the map — only the full City Tour loop ships. (Will, 2026-08-26)
 # Cat not listed here = every route in it ships, which is the case for appr/na/pub.
 ROUTE_SHIP_ONLY = {"city": {"City Tour"}}
+
+
+# DISPLAY OFFSET (metres, left of the direction of travel). The City Tour is invisible for
+# most of its length without one: 4 of its 10 segments sit exactly on top of another line —
+# the out-and-back leg to the start point is drawn twice over itself, and three more coincide
+# with RYA 5 / Edge of the World / NAJD 4 / NAJD 7. A white line under a green one is just a
+# green one, and the black casing added 2026-08-26 does nothing when the conflict is an
+# identical line rather than a pale basemap. Offsetting left-of-travel fixes both at once: the
+# tour draws as a parallel line beside the network, and the outbound and return legs separate
+# because they travel in opposite directions.
+# ⚠️ This is a DEPICTION offset applied at build time only. The source geometry in
+# uam-route-features.json is untouched (the HTML route map still draws the true line), and the
+# navdata waypoints are unmoved — a pilot flying the tour flies the waypoints, not this line.
+ROUTE_OFFSET_M = {"city": 80}
+
+
+def offset_polyline(pts, metres):
+    """Shift a [[lat, lon], ...] polyline sideways by `metres`, left of the direction of
+    travel. Per-vertex normals are averaged across the two adjacent segments so the line stays
+    continuous through corners. Flat-earth approximation — fine at Riyadh scale for a sub-100 m
+    depiction shift."""
+    if len(pts) < 2 or not metres:
+        return pts
+    lat0 = sum(p[0] for p in pts) / len(pts)
+    m_per_deg_lat = 110540.0
+    m_per_deg_lon = 111320.0 * math.cos(math.radians(lat0))
+
+    def left_normal(a, b):
+        de = (b[1] - a[1]) * m_per_deg_lon
+        dn = (b[0] - a[0]) * m_per_deg_lat
+        h = math.hypot(de, dn)
+        if h == 0:
+            return None
+        return (-dn / h, de / h)          # (east, north) unit vector, 90 deg left
+
+    normals = [left_normal(pts[i], pts[i + 1]) for i in range(len(pts) - 1)]
+    out = []
+    for i, p in enumerate(pts):
+        adj = [n for n in (normals[i - 1] if i > 0 else None,
+                           normals[i] if i < len(normals) else None) if n]
+        if not adj:
+            out.append(list(p))
+            continue
+        ne = sum(n[0] for n in adj) / len(adj)
+        nn = sum(n[1] for n in adj) / len(adj)
+        h = math.hypot(ne, nn)
+        if h == 0:                        # a doubled-back vertex cancels out; use one side
+            ne, nn = adj[0]
+            h = 1.0
+        ne, nn = ne / h, nn / h
+        out.append([p[0] + (nn * metres) / m_per_deg_lat,
+                    p[1] + (ne * metres) / m_per_deg_lon])
+    return out
 
 
 def kml_from_kmz(path):
@@ -309,7 +362,8 @@ def routes_layer_kml(json_path):
         if only is not None and L.get("n") not in only:
             withheld.append(L.get("n", ""))
             continue
-        coords = " ".join("%s,%s,0" % (pt[1], pt[0]) for pt in L.get("c", []))
+        pts = offset_polyline(L.get("c", []), ROUTE_OFFSET_M.get(cat, 0))
+        coords = " ".join("%s,%s,0" % (pt[1], pt[0]) for pt in pts)
         if not coords:
             continue
         name = _xml_escape(str(L.get("n", "")))
