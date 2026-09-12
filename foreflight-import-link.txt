@@ -1,5 +1,5 @@
-https://foreflight.com/content?downloadURL=https://willslawrence.github.io/SFLA/THC-Part-135-202609121523.zip
+https://foreflight.com/content?downloadURL=https://willslawrence.github.io/SFLA/THC-Part-135-202609121542.zip
 
-Release 202609121523, built 2026-09-12 15:23.
+Release 202609121542, built 2026-09-12 15:42.
 Give pilots THIS link — a new one is minted every release because
 ForeFlight caches content packs server-side by URL.

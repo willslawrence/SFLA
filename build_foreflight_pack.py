@@ -14,7 +14,8 @@ Re-run whenever the SFLA master KMZ (or waypoint sources) change, then commit + 
 The repo's THC_SFLA_master.kmz is the source of the area layer (kept current by the
 vault splice pipeline). Waypoint sources live in ./sources/ (copied from the vault).
 """
-import os, time, json, zipfile, shutil, tempfile, re
+import os
+import shutil, time, json, zipfile, tempfile, re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MASTER_KMZ = os.path.join(HERE, "THC_SFLA_master.kmz")
@@ -481,6 +482,23 @@ def publish_release(version):
     for old in stamped[:-KEEP_RELEASES]:
         os.remove(os.path.join(HERE, old))
         print(f"  pruned old release {old} (keeping last {KEEP_RELEASES})")
+
+    # Every retained release URL serves the CURRENT pack (Will, 2026-09-12).
+    # GitHub Pages cannot redirect a .zip, and an old import link never dies: it is
+    # copied into chats, bookmarked and re-tapped long after a newer pack exists.
+    # On 2026-09-12 a link 21 minutes out of date handed out superseded waypoints.
+    # So the stamped names stay as cache-busters for ForeFlight, but they are all
+    # byte-identical to the newest build — a stale link can no longer serve stale data.
+    refreshed = 0
+    for keep in stamped[-KEEP_RELEASES:]:
+        dst = os.path.join(HERE, keep)
+        if os.path.abspath(dst) == os.path.abspath(os.path.join(HERE, release)):
+            continue
+        shutil.copyfile(os.path.join(HERE, release), dst)
+        refreshed += 1
+    if refreshed:
+        print(f"  repointed {refreshed} older release URL(s) at this build "
+              f"(an old link can no longer serve an old pack)")
 
     return release, link
 
