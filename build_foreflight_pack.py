@@ -7,8 +7,8 @@ ForeFlight content-pack layout (per foreflight.com/support/content-packs):
     layers/   THC SFLA Areas.kml   <- vector areas (KML; incl. the Ritz restricted area)
     navdata/  THC Waypoints.kml, NAJD VRPs.kml   <- user waypoints (Point placemarks)
 
-Hosted on GitHub Pages; pilots import via:
-  https://foreflight.com/content?downloadURL=https://willslawrence.github.io/SFLA/THC-Part-135.zip
+Hosted on Cloudflare Pages (./deploy.sh); pilots import via:
+  https://foreflight.com/content?downloadURL=https://thc-sfla.pages.dev/THC-Part-135.zip
 
 Re-run whenever the SFLA master KMZ (or waypoint sources) change, then commit + push.
 The repo's THC_SFLA_master.kmz is the source of the area layer (kept current by the
@@ -32,7 +32,7 @@ PACK_NAME = "THC Part 135"
 # seen, so every build also writes a version-stamped copy and prints its import link.
 # A query string (?v=N) would be the tidier trick but is untested here and has to be
 # percent-encoded inside downloadURL=; the filename bump is the one with evidence.
-PAGES_BASE = "https://willslawrence.github.io/SFLA"
+PAGES_BASE = "https://thc-sfla.pages.dev"                # was willslawrence.github.io/SFLA until 2026-10-06
 LINK_FILE = os.path.join(HERE, "foreflight-import-link.txt")
 KEEP_RELEASES = 5                                    # older stamped zips are pruned (logged)
 
@@ -521,7 +521,7 @@ def publish_release(version):
         html = open(page, encoding="utf-8").read()
         new_html, n = re.subn(
             r'href="https://foreflight\.com/content\?downloadURL='
-            r'https://willslawrence\.github\.io/SFLA/THC-Part-135[^"]*"',
+            r'https://[^"/]+(?:/SFLA)?/THC-Part-135[^"]*"',   # any host: github.io or pages.dev
             'href="%s"' % link, html)
         if n:
             open(page, "w", encoding="utf-8").write(new_html)
